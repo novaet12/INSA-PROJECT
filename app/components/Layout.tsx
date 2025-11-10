@@ -16,32 +16,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
-      {/* Header with Logo Space */}
-      <header className="bg-slate-800 border-b border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center">
-              {/* Logo - 240px × 80px */}
-              <div className="w-10 h-5 flex items-center justify-center">
-                <Image
-                  src="/logo2.png"
-                  alt="CSRARS Logo"
-                  width={240}
-                  height={80}
-                  className="object-contain"
-                  priority
-                />
-              </div>
-            </div>
-            {/* header no longer contains sign out; it's moved to the sidebar bottom */}
-            <div />
-          </div>
-        </div>
-      </header>
+      {/* Header removed - logo moved into the sidebar */}
 
       <div className="flex">
-        {/* Sidebar Navigation (sticky, non-scrollable) */}
-        <aside className="w-64 bg-slate-800 border-r border-slate-700 h-[calc(100vh-5rem)] sticky top-20 flex flex-col">
+        {/* Sidebar Navigation with logo at top (sticky) */}
+        <aside className="w-64 bg-slate-800 border-r border-slate-700 h-screen sticky top-0 flex flex-col">
+          <div className="p-4 border-b border-slate-700 flex items-center justify-center">
+            <div className="w-full flex items-center justify-center">
+              <Image src="/logo2.png" alt="CSRARS Logo" width={180} height={60} className="object-contain" priority />
+            </div>
+          </div>
           <nav className="p-4 flex-1">
             <ul className="space-y-2">
               {navigation.map((item) => {
