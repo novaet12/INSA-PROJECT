@@ -40,9 +40,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </header>
 
       <div className="flex">
-        {/* Sidebar Navigation */}
-        <aside className="w-64 bg-slate-800 border-r border-slate-700 min-h-[calc(100vh-5rem)] flex flex-col">
-          <nav className="p-4 flex-1 overflow-auto">
+        {/* Sidebar Navigation (sticky, non-scrollable) */}
+        <aside className="w-64 bg-slate-800 border-r border-slate-700 h-[calc(100vh-5rem)] sticky top-20 flex flex-col">
+          <nav className="p-4 flex-1">
             <ul className="space-y-2">
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
