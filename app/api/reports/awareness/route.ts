@@ -70,10 +70,12 @@ export async function GET(req: NextRequest) {
     const effectivenessScore =
       totalRisks > 0
         ? ((totalLow / totalRisks) * 100 + (totalMedium / totalRisks) * 50).toFixed(1)
-        : 0;
+        : "0";
+
+    const effectivenessNumber = Number(effectivenessScore);
 
     // Generate awareness report content
-    const reportContent = `HUMAN AWARENESS ASSESSMENT REPORT
+  const reportContent = `HUMAN AWARENESS ASSESSMENT REPORT
 
 Executive Summary:
 This report evaluates cybersecurity awareness capabilities based on ${awarenessQuestionnaires.length} assessment questionnaire(s) and ${analyses.length} analysis(s).
@@ -91,7 +93,7 @@ ${totalMedium > 0 ? `⚠️ ${totalMedium} areas need improvement in cybersecuri
 ${totalLow > 0 ? `✅ ${totalLow} areas demonstrate good awareness practices.` : ""}
 
 Control Effectiveness:
-The overall control effectiveness score of ${effectivenessScore}% indicates ${effectivenessScore >= 70 ? "strong" : effectivenessScore >= 50 ? "moderate" : "weak"} cybersecurity awareness posture.
+The overall control effectiveness score of ${effectivenessScore}% indicates ${effectivenessNumber >= 70 ? "strong" : effectivenessNumber >= 50 ? "moderate" : "weak"} cybersecurity awareness posture.
 
 Recommendations:
 1. Address ${totalHigh} high-risk awareness gaps through targeted training

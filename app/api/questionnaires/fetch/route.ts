@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
               "Content-Type": "application/json",
               Cookie: req.headers.get("cookie") || "",
             },
-            body: JSON.stringify({ questionnaireId: saved._id.toString() }),
+            body: JSON.stringify({ questionnaireId: String(saved._id) }),
           });
         } catch (error) {
           console.error("Auto-analysis trigger failed:", error);

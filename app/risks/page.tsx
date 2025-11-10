@@ -25,13 +25,28 @@ export default function RisksPage() {
   const router = useRouter();
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
   const [selected, setSelected] = useState<Questionnaire | null>(null);
+  const [registeredRisks, setRegisteredRisks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // fetch registered risks (function declaration so it's available when effects run)
+  async function fetchRegisteredRisks() {
+    try {
+      const res = await fetch('/api/risks/list');
+      const data = await res.json();
+      if (data.success) {
+        setRegisteredRisks(data.risks || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch registered risks', err);
+    }
+  }
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated") {
       fetchQuestionnaires();
+      fetchRegisteredRisks();
     }
   }, [status, router]);
 
@@ -90,6 +105,8 @@ export default function RisksPage() {
       const data = await res.json();
       if (data.success) {
         alert("Risk created successfully");
+        // refresh registered risks list
+        fetchRegisteredRisks();
       } else {
         alert("Failed to create risk: " + (data.error || ""));
       }
@@ -98,6 +115,8 @@ export default function RisksPage() {
       alert("Error creating risk");
     }
   };
+
+  
 
   return (
     <Layout>
@@ -178,6 +197,50 @@ export default function RisksPage() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-2xl font-semibold text-white mb-4">Registered Risks</h2>
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+          {registeredRisks.length === 0 ? (
+            <div className="text-slate-400">No registered risks found.</div>
+          ) : (
+            <div className="space-y-3">
+              {registeredRisks.map((r) => (
+                <div key={r._id || r.riskId} className="flex items-start justify-between bg-slate-900 p-3 rounded">
+                  <div>
+                    <div className="text-sm text-slate-300">{r.description}</div>
+                    <div className="text-xs text-slate-400">Level: {r.level || r.level?.toString?.() || 'n/a'} — Owner: {r.owner || r.createdBy || 'n/a'}</div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={async () => {
+                        const ok = confirm('Delete this risk? This cannot be undone');
+                        if (!ok) return;
+                        try {
+                          const id = r.riskId || r._id;
+                          const res = await fetch(`/api/risks/delete?riskId=${encodeURIComponent(id)}`, { method: 'DELETE' });
+                          const d = await res.json();
+                          if (d.success) {
+                            fetchRegisteredRisks();
+                          } else {
+                            alert('Failed to delete: ' + (d.error || ''));
+                          }
+                        } catch (err) {
+                          console.error('Delete error', err);
+                          alert('Error deleting risk');
+                        }
+                      }}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </Layout>

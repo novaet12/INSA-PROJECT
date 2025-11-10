@@ -34,6 +34,30 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // helper to normalize different buffer-like returns into ArrayBuffer
+    function toArrayBuffer(input: any): ArrayBuffer {
+      if (!input) return new ArrayBuffer(0);
+      // Node Buffer
+      if (Buffer.isBuffer(input)) {
+        return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength) as ArrayBuffer;
+      }
+      // Uint8Array
+      if (input instanceof Uint8Array) {
+        return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength) as ArrayBuffer;
+      }
+      // ArrayBuffer
+      if (input instanceof ArrayBuffer) return input;
+      // Blob (not expected server-side) -> try arrayBuffer()
+      if (typeof input.arrayBuffer === "function") return input.arrayBuffer();
+      // string -> encode
+      if (typeof input === "string") {
+        const enc = new TextEncoder();
+        return enc.encode(input).buffer;
+      }
+      // Fallback
+      return new ArrayBuffer(0);
+    }
+
     if (format === "PDF") {
       const doc = new jsPDF();
       doc.setFontSize(16);
@@ -53,8 +77,9 @@ export async function GET(req: NextRequest) {
       });
 
       const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
-      
-      return new NextResponse(pdfBuffer, {
+      const pdfArray = toArrayBuffer(pdfBuffer);
+
+      return new NextResponse(pdfArray, {
         headers: {
           "Content-Type": "application/pdf",
           "Content-Disposition": `attachment; filename="report-${report.level}-${reportId}.pdf"`,
@@ -90,8 +115,9 @@ export async function GET(req: NextRequest) {
       });
 
       const buffer = await Packer.toBuffer(doc);
+      const docxArray = toArrayBuffer(buffer);
 
-      return new NextResponse(buffer, {
+      return new NextResponse(docxArray, {
         headers: {
           "Content-Type":
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -157,8 +183,9 @@ export async function GET(req: NextRequest) {
       });
 
       const buffer = await pptx.write({ outputType: "nodebuffer" });
+      const pptxArray = toArrayBuffer(buffer);
 
-      return new NextResponse(buffer, {
+      return new NextResponse(pptxArray, {
         headers: {
           "Content-Type":
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
