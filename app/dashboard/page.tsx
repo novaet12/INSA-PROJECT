@@ -377,7 +377,6 @@ export default function DashboardPage() {
             {/* Processed Assessments */}
             <div className="space-y-6">
               <h3 className="text-xl font-bold text-white">✅ Processed Assessments</h3>
-              
               {filteredAssessments.length === 0 ? (
                 <div className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg p-12 text-center">
                   <div className="text-6xl mb-4 opacity-30">📊</div>
@@ -499,7 +498,6 @@ export default function DashboardPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-white mb-4">📝 Register Risk</h3>
-            
             <div className="mb-4 p-4 bg-slate-900 rounded border border-slate-700">
               <p className="text-sm text-slate-400 mb-2"><strong>Question:</strong></p>
               <p className="text-white text-sm mb-3">{registeringRisk.question}</p>
