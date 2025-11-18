@@ -1,43 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
-import dbConnect from "@/lib/mongodb";
-import RiskRegister from "@/models/RiskRegister";
+// app/api/risks/list/route.ts
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { RiskService } from "@/lib/services/riskService";
 
-export async function GET(req: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const session = await getSession();
+    const session = await getServerSession(authOptions);
+    
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
-    await dbConnect();
+    const { searchParams } = new URL(request.url);
+    const filters = {
+      company: searchParams.get("company") || undefined,
+      level: searchParams.get("level") || undefined,
+      status: searchParams.get("status") || undefined,
+      dateFrom: searchParams.get("dateFrom") || undefined,
+      dateTo: searchParams.get("dateTo") || undefined,
+    };
 
-    const searchParams = req.nextUrl.searchParams;
-    const status = searchParams.get("status");
-    const category = searchParams.get("category");
-
-    const query: any = {};
-    if (status) {
-      query.status = status;
-    }
-    if (category) {
-      query.category = category;
-    }
-
-    const risks = await RiskRegister.find(query)
-      .sort({ createdAt: -1 })
-      .limit(100);
+    const risks = await RiskService.getRisks(filters);
 
     return NextResponse.json({
       success: true,
       risks,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching risks:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to fetch risks" },
+      { success: false, error: "Failed to fetch risks" },
       { status: 500 }
     );
   }
 }
-

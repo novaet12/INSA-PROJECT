@@ -38,7 +38,6 @@ export default function RisksPage() {
   const router = useRouter();
   
   const [allRisks, setAllRisks] = useState<Risk[]>([]);
-  const [filteredRisks, setFilteredRisks] = useState<Risk[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Filter states
@@ -55,13 +54,23 @@ export default function RisksPage() {
     }
   }, [status, router]);
 
+  // Re-fetch when filters change
   useEffect(() => {
-    applyFilters();
-  }, [companyFilter, levelFilter, statusFilter, dateFilter, allRisks]);
+    if (status === "authenticated") {
+      fetchRegisteredRisks();
+    }
+  }, [companyFilter, levelFilter, statusFilter, dateFilter, status]);
 
+  // ✅ CHANGED: Now uses query parameters for server-side filtering
   const fetchRegisteredRisks = async () => {
     try {
-      const res = await fetch("/api/risks/list");
+      const params = new URLSearchParams();
+      if (companyFilter) params.append('company', companyFilter);
+      if (levelFilter) params.append('level', levelFilter);
+      if (statusFilter) params.append('status', statusFilter);
+      if (dateFilter) params.append('dateFrom', dateFilter);
+      
+      const res = await fetch(`/api/risks/list?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
         setAllRisks(data.risks || []);
@@ -73,41 +82,14 @@ export default function RisksPage() {
     }
   };
 
-  const applyFilters = () => {
-    let filtered = [...allRisks];
-
-    if (companyFilter) {
-      filtered = filtered.filter((risk) =>
-        (risk.company || "").toLowerCase().includes(companyFilter.toLowerCase())
-      );
-    }
-
-    if (levelFilter) {
-      filtered = filtered.filter((risk) => risk.level === levelFilter);
-    }
-
-    if (statusFilter) {
-      filtered = filtered.filter((risk) => risk.status === statusFilter);
-    }
-
-    if (dateFilter) {
-      filtered = filtered.filter((risk) => {
-        const riskDate = new Date(risk.createdAt).toISOString().split("T")[0];
-        return riskDate === dateFilter;
-      });
-    }
-
-    setFilteredRisks(filtered);
-  };
-
   const calculateStats = (): Stats => {
     return {
-      total: filteredRisks.length,
-      critical: filteredRisks.filter((r) => r.level === "critical").length,
-      high: filteredRisks.filter((r) => r.level === "high").length,
-      medium: filteredRisks.filter((r) => r.level === "medium").length,
-      low: filteredRisks.filter((r) => r.level === "low").length,
-      open: filteredRisks.filter((r) => r.status === "open").length,
+      total: allRisks.length,
+      critical: allRisks.filter((r) => r.level === "critical").length,
+      high: allRisks.filter((r) => r.level === "high").length,
+      medium: allRisks.filter((r) => r.level === "medium").length,
+      low: allRisks.filter((r) => r.level === "low").length,
+      open: allRisks.filter((r) => r.status === "open").length,
     };
   };
 
@@ -254,14 +236,14 @@ export default function RisksPage() {
 
         {/* Risks List */}
         <div className="space-y-4">
-          {filteredRisks.length === 0 ? (
+          {allRisks.length === 0 ? (
             <div className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg p-12 text-center">
               <div className="text-6xl mb-4 opacity-30">📋</div>
               <p className="text-white font-semibold mb-2">No risks found</p>
               <p className="text-slate-400">Try adjusting your filters or add new risks to the register</p>
             </div>
           ) : (
-            filteredRisks.map((risk) => {
+            allRisks.map((risk) => {
               const riskScore = risk.likelihood * risk.impact;
               const effectiveness = risk.mitigationEffectiveness || 0;
               const postLikelihood = Math.max(1, Math.round(risk.likelihood * (1 - effectiveness / 100)));

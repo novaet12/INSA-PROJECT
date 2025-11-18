@@ -1,79 +1,64 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
-import dbConnect from "@/lib/mongodb";
-import RiskRegister from "@/models/RiskRegister";
+// app/api/risks/create/route.ts
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { RiskService } from "@/lib/services/riskService";
 
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const session = await getSession();
+    const session = await getServerSession(authOptions);
+    
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
-    const {
-      description,
-      category,
-      likelihood,
-      impact,
-      status,
-      mitigationStrategy,
-      owner,
-      level,
-    } = await req.json();
+    const body = await request.json();
 
-    if (!description || !category || !likelihood || !impact) {
+    // Validate required fields
+    if (!body.description || !body.category || !body.level || !body.owner) {
       return NextResponse.json(
-        { error: "Description, category, likelihood, and impact are required" },
+        { success: false, error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // validate level if provided
-    const allowedLevels = ["critical", "high", "medium", "low"];
-    const chosenLevel = level && allowedLevels.includes(level) ? level : "low";
-
-    if (likelihood < 1 || likelihood > 5 || impact < 1 || impact > 5) {
+    // Validate likelihood and impact
+    if (body.likelihood < 1 || body.likelihood > 5 || body.impact < 1 || body.impact > 5) {
       return NextResponse.json(
-        { error: "Likelihood and impact must be between 1 and 5" },
+        { success: false, error: "Likelihood and impact must be between 1 and 5" },
         { status: 400 }
       );
     }
 
-    await dbConnect();
-
-    const userEmail = (session.user as any)?.email || "unknown";
-    const riskId = `RISK-MANUAL-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-
-    const riskRegister = new RiskRegister({
-      riskId,
-      description,
-      category,
-      likelihood,
-      impact,
-      status: status || "open",
-      level: chosenLevel,
-      mitigationStrategy: mitigationStrategy || "",
-      owner: owner || userEmail,
+    const risk = await RiskService.createRisk({
+      description: body.description,
+      company: body.company,
+      category: body.category,
+      level: body.level,
+      likelihood: body.likelihood,
+      impact: body.impact,
+      status: body.status || "open",
+      owner: body.owner,
+      gap: body.gap,
+      threat: body.threat,
+      mitigation: body.mitigation,
+      mitigationStrategy: body.mitigationStrategy,
+      mitigationCost: body.mitigationCost,
+      mitigationEffectiveness: body.mitigationEffectiveness,
     });
-
-    const savedRisk = await riskRegister.save();
 
     return NextResponse.json({
       success: true,
-      risk: savedRisk,
+      risk,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating risk:", error);
-    if (error.code === 11000) {
-      return NextResponse.json(
-        { error: "Risk with this ID already exists" },
-        { status: 400 }
-      );
-    }
     return NextResponse.json(
-      { error: error.message || "Failed to create risk" },
+      { success: false, error: "Failed to create risk" },
       { status: 500 }
     );
   }
 }
-

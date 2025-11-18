@@ -10,8 +10,6 @@ interface DashboardStats {
   highRisks: number;
   mediumRisks: number;
   lowRisks: number;
-  totalQuestionnaires: number;
-  totalReports: number;
   totalRegisteredRisks?: number;
   openRisks?: number;
   mitigatedRisks?: number;
@@ -35,11 +33,7 @@ interface ProcessedAssessment {
   category: string;
   date: string;
   analyses: QuestionAnalysis[];
-  riskMatrix: {
-    likelihood: number;
-    impact: number;
-    count: number;
-  }[];
+  riskMatrix: { likelihood: number; impact: number; count: number }[];
 }
 
 interface Questionnaire {
@@ -58,10 +52,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "assessment">("overview");
   
-  // Assessment tab states
+  // Assessment states
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
   const [processedAssessments, setProcessedAssessments] = useState<ProcessedAssessment[]>([]);
-  const [fetchingQuestionnaires, setFetchingQuestionnaires] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   
   // Filters
@@ -69,33 +62,43 @@ export default function DashboardPage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
 
-  // Risk registration modal
+  // Risk registration
   const [registeringRisk, setRegisteringRisk] = useState<QuestionAnalysis | null>(null);
   const [selectedCompany, setSelectedCompany] = useState("");
-  const [riskFormData, setRiskFormData] = useState({
-    category: "",
-    status: "open",
-    owner: ""
-  });
+  const [riskFormData, setRiskFormData] = useState({ category: "", status: "open", owner: "" });
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated") {
       fetchStats();
-      if (activeTab === "assessment") {
-        fetchQuestionnaires();
-        fetchProcessedAssessments();
-      }
     }
-  }, [status, router, activeTab]);
+  }, [status, router]);
 
+  // Automatically load questionnaires when assessment tab is opened
+  useEffect(() => {
+    if (status === "authenticated" && activeTab === "assessment") {
+      fetchQuestionnaires();
+      fetchProcessedAssessments();
+    }
+  }, [status, activeTab]);
+
+  // ✅ CHANGED: Now uses dedicated /api/risks/stats endpoint
   const fetchStats = async () => {
     try {
-      const response = await fetch("/api/dashboard/stats");
-      const data = await response.json();
-      if (data.stats) {
-        setStats(data.stats);
+      const res = await fetch("/api/risks/stats");
+      const data = await res.json();
+      if (data.success && data.stats) {
+        // Map backend stats to dashboard stats format
+        setStats({
+          totalRisks: data.stats.totalRisks || 0,
+          highRisks: data.stats.high || 0,
+          mediumRisks: data.stats.medium || 0,
+          lowRisks: data.stats.low || 0,
+          totalRegisteredRisks: data.stats.totalRisks || 0,
+          openRisks: data.stats.open || 0,
+          mitigatedRisks: data.stats.mitigated || 0,
+        });
       }
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -106,67 +109,36 @@ export default function DashboardPage() {
 
   const fetchQuestionnaires = async () => {
     try {
-      const response = await fetch("/api/questionnaires/list");
-      const data = await response.json();
-      if (data.success && Array.isArray(data.questionnaires)) {
-        setQuestionnaires(data.questionnaires);
-      } else {
-        setQuestionnaires([]);
-      }
+      const res = await fetch("/api/questionnaires/list");
+      const data = await res.json();
+      setQuestionnaires(data.success && Array.isArray(data.questionnaires) ? data.questionnaires : []);
     } catch (error) {
-      console.error("Error fetching questionnaires:", error);
+      console.error("Error:", error);
       setQuestionnaires([]);
     }
   };
 
   const fetchProcessedAssessments = async () => {
     try {
-      const response = await fetch("/api/analysis/processed");
-      const data = await response.json();
-      if (data.success && Array.isArray(data.assessments)) {
-        setProcessedAssessments(data.assessments);
-      } else {
-        setProcessedAssessments([]);
-      }
+      const res = await fetch("/api/analysis/processed");
+      const data = await res.json();
+      setProcessedAssessments(data.success && Array.isArray(data.assessments) ? data.assessments : []);
     } catch (error) {
-      console.error("Error fetching processed assessments:", error);
+      console.error("Error:", error);
       setProcessedAssessments([]);
-    }
-  };
-
-  const handleFetchExternalQuestionnaires = async () => {
-    setFetchingQuestionnaires(true);
-    setMessage(null);
-    try {
-      const response = await fetch("/api/questionnaires/fetch", {
-        method: "POST",
-      });
-      const data = await response.json();
-      if (data.success) {
-        setMessage({ type: 'success', text: `Successfully fetched ${data.count || 0} questionnaires` });
-        fetchQuestionnaires();
-        fetchStats();
-      } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to fetch questionnaires' });
-      }
-    } catch (error) {
-      console.error("Error fetching questionnaires:", error);
-      setMessage({ type: 'error', text: 'Error fetching questionnaires' });
-    } finally {
-      setFetchingQuestionnaires(false);
     }
   };
 
   const handleTriggerAnalysis = async (questionnaireId: string) => {
     try {
-      const response = await fetch("/api/analysis/process", {
+      const res = await fetch("/api/analysis/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questionnaireId }),
       });
-      const data = await response.json();
+      const data = await res.json();
       if (data.success) {
-        setMessage({ type: 'success', text: 'Analysis completed successfully' });
+        setMessage({ type: 'success', text: 'Analysis completed' });
         fetchQuestionnaires();
         fetchProcessedAssessments();
         fetchStats();
@@ -174,7 +146,6 @@ export default function DashboardPage() {
         setMessage({ type: 'error', text: data.error || 'Analysis failed' });
       }
     } catch (error) {
-      console.error("Error triggering analysis:", error);
       setMessage({ type: 'error', text: 'Error triggering analysis' });
     }
   };
@@ -182,78 +153,61 @@ export default function DashboardPage() {
   const openRegisterRiskModal = (analysis: QuestionAnalysis, company: string) => {
     setRegisteringRisk(analysis);
     setSelectedCompany(company);
-    setRiskFormData({
-      category: "",
-      status: "open",
-      owner: (session?.user as any)?.email || ""
-    });
+    setRiskFormData({ category: "", status: "open", owner: (session?.user as any)?.email || "" });
   };
 
   const closeRegisterRiskModal = () => {
     setRegisteringRisk(null);
     setSelectedCompany("");
-    setRiskFormData({
-      category: "",
-      status: "open",
-      owner: ""
-    });
+    setRiskFormData({ category: "", status: "open", owner: "" });
   };
 
+  // ✅ CHANGED: Now uses /api/risks/create endpoint with proper structure
   const handleRegisterRisk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!registeringRisk) return;
 
-    const payload = {
-      description: `${registeringRisk.question} — Answer: ${registeringRisk.answer}`,
-      company: selectedCompany,
-      category: riskFormData.category || "Uncategorized",
-      level: registeringRisk.riskLevel.toLowerCase(),
-      likelihood: registeringRisk.likelihood,
-      impact: registeringRisk.impact,
-      status: riskFormData.status,
-      owner: riskFormData.owner,
-      gap: registeringRisk.gap,
-      threat: registeringRisk.threat,
-      mitigation: registeringRisk.mitigation,
-      mitigationStrategy: registeringRisk.mitigation,
-    };
-
     try {
-      const response = await fetch("/api/risks/create", {
+      const res = await fetch("/api/risks/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          description: `${registeringRisk.question} — Answer: ${registeringRisk.answer}`,
+          company: selectedCompany,
+          category: riskFormData.category || "Uncategorized",
+          level: registeringRisk.riskLevel.toLowerCase(),
+          likelihood: registeringRisk.likelihood,
+          impact: registeringRisk.impact,
+          status: riskFormData.status,
+          owner: riskFormData.owner,
+          gap: registeringRisk.gap,
+          threat: registeringRisk.threat,
+          mitigation: registeringRisk.mitigation,
+          mitigationStrategy: registeringRisk.mitigation,
+        }),
       });
-      const data = await response.json();
+      const data = await res.json();
       if (data.success) {
         setMessage({ type: 'success', text: 'Risk registered successfully' });
         closeRegisterRiskModal();
-        fetchStats();
+        fetchStats(); // Refresh stats after creating risk
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to register risk' });
+        setMessage({ type: 'error', text: data.error || 'Failed to register' });
       }
     } catch (error) {
-      console.error("Error registering risk:", error);
       setMessage({ type: 'error', text: 'Error registering risk' });
     }
   };
 
-  // Safe filtering with null checks
-  const filteredQuestionnaires = (questionnaires || []).filter(q => {
-    if (!q) return false;
-    const matchCompany = !companyFilter || (q.company || "").toLowerCase().includes(companyFilter.toLowerCase());
-    const matchCategory = !categoryFilter || q.category === categoryFilter;
-    const matchDate = !dateFilter || q.date === dateFilter;
-    return matchCompany && matchCategory && matchDate;
-  });
-
-  const filteredAssessments = (processedAssessments || []).filter(a => {
-    if (!a) return false;
-    const matchCompany = !companyFilter || (a.company || "").toLowerCase().includes(companyFilter.toLowerCase());
-    const matchCategory = !categoryFilter || a.category === categoryFilter;
-    const matchDate = !dateFilter || a.date === dateFilter;
-    return matchCompany && matchCategory && matchDate;
-  });
+  const filterItems = <T extends { company?: string; category?: string; date?: string }>(items: T[]) => {
+    return items.filter(item => {
+      if (!item) return false;
+      const matchCompany = !companyFilter || (item.company || "").toLowerCase().includes(companyFilter.toLowerCase());
+      const matchCategory = !categoryFilter || item.category === categoryFilter;
+      const matchDate = !dateFilter || item.date === dateFilter;
+      return matchCompany && matchCategory && matchDate;
+    });
+  };
 
   if (status === "loading" || loading) {
     return (
@@ -265,39 +219,29 @@ export default function DashboardPage() {
     );
   }
 
-  if (!session) {
-    return null;
-  }
+  if (!session) return null;
+
+  const filteredQuestionnaires = filterItems(questionnaires);
+  const filteredAssessments = filterItems(processedAssessments);
 
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-        </div>
+        <h1 className="text-3xl font-bold text-white">Dashboard</h1>
 
         {/* Tabs */}
         <div className="flex space-x-4 border-b border-slate-700">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`px-6 py-3 font-medium transition ${
-              activeTab === "overview"
-                ? "text-blue-400 border-b-2 border-blue-400"
-                : "text-slate-400 hover:text-slate-300"
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab("assessment")}
-            className={`px-6 py-3 font-medium transition ${
-              activeTab === "assessment"
-                ? "text-blue-400 border-b-2 border-blue-400"
-                : "text-slate-400 hover:text-slate-300"
-            }`}
-          >
-            Risk Assessment
-          </button>
+          {["overview", "assessment"].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab as any)}
+              className={`px-6 py-3 font-medium transition ${
+                activeTab === tab ? "text-blue-400 border-b-2 border-blue-400" : "text-slate-400 hover:text-slate-300"
+              }`}
+            >
+              {tab === "overview" ? "Overview" : "Risk Assessment"}
+            </button>
+          ))}
         </div>
 
         {/* Messages */}
@@ -312,60 +256,40 @@ export default function DashboardPage() {
         {/* Overview Tab */}
         {activeTab === "overview" && (
           <>
-            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                <h3 className="text-slate-400 text-sm font-medium mb-2">Total Risks</h3>
-                <p className="text-3xl font-bold text-white">{stats?.totalRisks || 0}</p>
-              </div>
-              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                <h3 className="text-slate-400 text-sm font-medium mb-2">High Risks</h3>
-                <p className="text-3xl font-bold text-red-400">{stats?.highRisks || 0}</p>
-              </div>
-              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                <h3 className="text-slate-400 text-sm font-medium mb-2">Medium Risks</h3>
-                <p className="text-3xl font-bold text-yellow-400">{stats?.mediumRisks || 0}</p>
-              </div>
-              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                <h3 className="text-slate-400 text-sm font-medium mb-2">Low Risks</h3>
-                <p className="text-3xl font-bold text-green-400">{stats?.lowRisks || 0}</p>
-              </div>
+              {[
+                { label: "Total Risks", value: stats?.totalRisks || 0, color: "text-white" },
+                { label: "High Risks", value: stats?.highRisks || 0, color: "text-red-400" },
+                { label: "Medium Risks", value: stats?.mediumRisks || 0, color: "text-yellow-400" },
+                { label: "Low Risks", value: stats?.lowRisks || 0, color: "text-green-400" },
+              ].map((stat, i) => (
+                <div key={i} className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                  <h3 className="text-slate-400 text-sm font-medium mb-2">{stat.label}</h3>
+                  <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                </div>
+              ))}
             </div>
 
-            {/* Risk Register Stats */}
             {stats?.totalRegisteredRisks !== undefined && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                  <h3 className="text-slate-400 text-sm font-medium mb-2">Registered Risks</h3>
-                  <p className="text-3xl font-bold text-white">{stats?.totalRegisteredRisks || 0}</p>
-                </div>
-                <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                  <h3 className="text-slate-400 text-sm font-medium mb-2">Open Risks</h3>
-                  <p className="text-3xl font-bold text-orange-400">{stats?.openRisks || 0}</p>
-                </div>
-                <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                  <h3 className="text-slate-400 text-sm font-medium mb-2">Mitigated Risks</h3>
-                  <p className="text-3xl font-bold text-green-400">{stats?.mitigatedRisks || 0}</p>
-                </div>
+                {[
+                  { label: "Registered Risks", value: stats.totalRegisteredRisks, color: "text-white" },
+                  { label: "Open Risks", value: stats.openRisks || 0, color: "text-orange-400" },
+                  { label: "Mitigated Risks", value: stats.mitigatedRisks || 0, color: "text-green-400" },
+                ].map((stat, i) => (
+                  <div key={i} className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                    <h3 className="text-slate-400 text-sm font-medium mb-2">{stat.label}</h3>
+                    <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                  </div>
+                ))}
               </div>
             )}
           </>
         )}
 
-        {/* Risk Assessment Tab */}
+        {/* Assessment Tab */}
         {activeTab === "assessment" && (
           <div className="space-y-6">
-            {/* Fetch Questionnaires Button */}
-            <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-              <button
-                onClick={handleFetchExternalQuestionnaires}
-                disabled={fetchingQuestionnaires}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-md transition font-medium"
-              >
-                {fetchingQuestionnaires ? "Fetching..." : "📥 Fetch External Questionnaires"}
-              </button>
-            </div>
-
             {/* Filters */}
             <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
               <h3 className="text-lg font-bold text-white mb-4">🔍 Filter Assessments</h3>
@@ -388,9 +312,9 @@ export default function DashboardPage() {
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
                   >
                     <option value="">All Categories</option>
-                    <option value="operational">Operational Level</option>
-                    <option value="tactical">Tactical Level</option>
-                    <option value="strategic">Strategic Level</option>
+                    <option value="operational">Operational</option>
+                    <option value="tactical">Tactical</option>
+                    <option value="strategic">Strategic</option>
                   </select>
                 </div>
                 <div>
@@ -405,9 +329,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Layout: Questionnaires + Risk Matrix */}
+            {/* Questionnaires + Matrix */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Questionnaires List (2/3 width) */}
               <div className="lg:col-span-2 bg-slate-800 rounded-lg border border-slate-700 p-6">
                 <h3 className="text-lg font-bold text-white mb-4">📋 Questionnaires</h3>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -421,10 +344,8 @@ export default function DashboardPage() {
                       <div key={q._id} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
-                            <div className="text-white font-medium">{q.company || "Unknown Company"}</div>
-                            <div className="text-xs text-slate-400">
-                              {q.category || "Uncategorized"} • {q.responseCount || 0} responses
-                            </div>
+                            <div className="text-white font-medium">{q.company || "Unknown"}</div>
+                            <div className="text-xs text-slate-400">{q.category || "Uncategorized"} • {q.responseCount || 0} responses</div>
                           </div>
                           <span className={`px-2 py-1 rounded text-xs font-medium ${
                             q.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400' : 'bg-green-600/20 text-green-400'
@@ -432,9 +353,7 @@ export default function DashboardPage() {
                             {q.status || "pending"}
                           </span>
                         </div>
-                        <div className="text-xs text-slate-500 mb-3">
-                          {q.date ? new Date(q.date).toLocaleDateString() : "No date"}
-                        </div>
+                        <div className="text-xs text-slate-500 mb-3">{q.date ? new Date(q.date).toLocaleDateString() : "No date"}</div>
                         {q.status === 'pending' && (
                           <button
                             onClick={() => handleTriggerAnalysis(q._id)}
@@ -449,7 +368,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Global Risk Matrix (1/3 width) */}
               <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
                 <h3 className="text-lg font-bold text-white mb-4">📊 Risk Matrix</h3>
                 <RiskMatrix data={null} />
@@ -469,19 +387,14 @@ export default function DashboardPage() {
               ) : (
                 filteredAssessments.map((assessment) => (
                   <div key={assessment._id} className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                    <div className="flex justify-between items-start mb-6">
-                      <div>
-                        <h4 className="text-xl font-bold text-white mb-2">🏢 {assessment.company || "Unknown Company"}</h4>
-                        <div className="flex gap-3 text-sm">
-                          <span className="text-slate-400">📊 {assessment.category || "Uncategorized"}</span>
-                          <span className="text-slate-400">
-                            📅 {assessment.date ? new Date(assessment.date).toLocaleDateString() : "No date"}
-                          </span>
-                        </div>
+                    <div className="mb-6">
+                      <h4 className="text-xl font-bold text-white mb-2">🏢 {assessment.company || "Unknown"}</h4>
+                      <div className="flex gap-3 text-sm">
+                        <span className="text-slate-400">📊 {assessment.category || "Uncategorized"}</span>
+                        <span className="text-slate-400">📅 {assessment.date ? new Date(assessment.date).toLocaleDateString() : "No date"}</span>
                       </div>
                     </div>
 
-                    {/* Question Analyses */}
                     <div className="space-y-4 mb-6">
                       {(assessment.analyses || []).map((analysis, idx) => (
                         <div key={idx} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
@@ -508,28 +421,18 @@ export default function DashboardPage() {
                           <div className="mb-3 bg-slate-800 rounded p-3">
                             <div className="flex items-start gap-2 mb-2">
                               <span className="text-lg">📊</span>
-                              <span className="text-xs font-semibold text-white uppercase tracking-wider">Risk Matrix Analysis:</span>
+                              <span className="text-xs font-semibold text-white uppercase tracking-wider">Risk Analysis:</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+                              <div><span className="text-slate-400">Likelihood:</span> <span className="text-white ml-2">{analysis.likelihood || 0}/5</span></div>
+                              <div><span className="text-slate-400">Impact:</span> <span className="text-white ml-2">{analysis.impact || 0}/5</span></div>
+                              <div><span className="text-slate-400">Risk Score:</span> <span className="text-white ml-2">{analysis.riskScore || 0}</span></div>
                               <div>
-                                <span className="text-slate-400">Likelihood:</span>
-                                <span className="text-white ml-2">{analysis.likelihood || 0}/5</span>
-                              </div>
-                              <div>
-                                <span className="text-slate-400">Impact:</span>
-                                <span className="text-white ml-2">{analysis.impact || 0}/5</span>
-                              </div>
-                              <div>
-                                <span className="text-slate-400">Risk Score:</span>
-                                <span className="text-white ml-2">{analysis.riskScore || 0} ({analysis.likelihood || 0} × {analysis.impact || 0})</span>
-                              </div>
-                              <div>
-                                <span className="text-slate-400">Risk Level:</span>
+                                <span className="text-slate-400">Level:</span>
                                 <span className={`ml-2 font-bold ${
                                   analysis.riskLevel === 'CRITICAL' ? 'text-red-500' :
                                   analysis.riskLevel === 'HIGH' ? 'text-orange-500' :
-                                  analysis.riskLevel === 'MEDIUM' ? 'text-yellow-500' :
-                                  'text-green-500'
+                                  analysis.riskLevel === 'MEDIUM' ? 'text-yellow-500' : 'text-green-500'
                                 }`}>{analysis.riskLevel || "UNKNOWN"}</span>
                               </div>
                             </div>
@@ -545,7 +448,6 @@ export default function DashboardPage() {
                                 </div>
                               </div>
                             )}
-
                             {analysis.threat && (
                               <div className="flex items-start gap-2">
                                 <span className="text-lg">🎯</span>
@@ -555,7 +457,6 @@ export default function DashboardPage() {
                                 </div>
                               </div>
                             )}
-
                             {analysis.mitigation && (
                               <div className="flex items-start gap-2">
                                 <span className="text-lg">🔧</span>
@@ -567,7 +468,6 @@ export default function DashboardPage() {
                             )}
                           </div>
 
-                          {/* Register Risk Button */}
                           <div className="mt-4 pt-4 border-t border-slate-700">
                             <button
                               onClick={() => openRegisterRiskModal(analysis, assessment.company)}
@@ -580,7 +480,6 @@ export default function DashboardPage() {
                       ))}
                     </div>
 
-                    {/* Company Risk Matrix */}
                     {assessment.riskMatrix && (
                       <div className="bg-slate-900 rounded-lg p-4 border border-slate-700">
                         <h5 className="text-sm font-bold text-white mb-3">Risk Matrix for {assessment.company}</h5>
@@ -611,12 +510,7 @@ export default function DashboardPage() {
             <form onSubmit={handleRegisterRisk} className="space-y-4">
               <div>
                 <label className="block text-sm text-slate-400 mb-2">Company</label>
-                <input
-                  type="text"
-                  value={selectedCompany}
-                  readOnly
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white"
-                />
+                <input type="text" value={selectedCompany} readOnly className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white" />
               </div>
 
               <div>
@@ -625,7 +519,7 @@ export default function DashboardPage() {
                   type="text"
                   value={riskFormData.category}
                   onChange={(e) => setRiskFormData({...riskFormData, category: e.target.value})}
-                  placeholder="e.g., Data Security, Compliance, Access Management"
+                  placeholder="e.g., Data Security, Compliance"
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white"
                   required
                 />
@@ -634,12 +528,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-slate-400 mb-2">Risk Level</label>
-                  <input
-                    type="text"
-                    value={registeringRisk.riskLevel}
-                    readOnly
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-400"
-                  />
+                  <input type="text" value={registeringRisk.riskLevel} readOnly className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-400" />
                 </div>
                 <div>
                   <label className="block text-sm text-slate-400 mb-2">Status</label>
@@ -669,17 +558,10 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex gap-3">
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition"
-                >
+                <button type="submit" className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition">
                   Register Risk
                 </button>
-                <button
-                  type="button"
-                  onClick={closeRegisterRiskModal}
-                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-medium transition"
-                >
+                <button type="button" onClick={closeRegisterRiskModal} className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-medium transition">
                   Cancel
                 </button>
               </div>
