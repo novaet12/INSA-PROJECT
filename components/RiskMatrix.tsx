@@ -1,107 +1,120 @@
-"use client";
+// components/RiskMatrix.tsx
+import React from 'react';
 
-interface RiskMatrixProps {
-  data: Array<{
-    likelihood: number;
-    impact: number;
-    count: number;
-  }>;
+interface RiskMatrixData {
+  likelihood: number;
+  impact: number;
+  count: number;
 }
 
-export default function RiskMatrix({ data }: RiskMatrixProps) {
-  const matrix = Array(5)
-    .fill(0)
-    .map(() => Array(5).fill(0));
+interface RiskMatrixProps {
+  data: RiskMatrixData[] | null;
+}
 
-  // Populate matrix with data
-  data.forEach((item) => {
-    if (item.likelihood >= 1 && item.likelihood <= 5 && item.impact >= 1 && item.impact <= 5) {
-      matrix[5 - item.impact][item.likelihood - 1] = item.count;
-    }
-  });
+const RiskMatrix: React.FC<RiskMatrixProps> = ({ data }) => {
+  // Initialize 5x5 matrix with zeros
+  const matrix: number[][] = Array(5).fill(0).map(() => Array(5).fill(0));
 
-  const getColor = (likelihood: number, impact: number) => {
+  // Populate matrix with data (only if data exists and is an array)
+  if (data && Array.isArray(data)) {
+    data.forEach((item) => {
+      if (item.likelihood >= 1 && item.likelihood <= 5 && item.impact >= 1 && item.impact <= 5) {
+        matrix[5 - item.impact][item.likelihood - 1] = item.count;
+      }
+    });
+  }
+
+  const getColor = (likelihood: number, impact: number): string => {
     const score = likelihood * impact;
-    if (score >= 20) return "bg-red-900";
-    if (score >= 15) return "bg-red-700";
-    if (score >= 10) return "bg-orange-600";
-    if (score >= 5) return "bg-yellow-600";
-    return "bg-green-600";
+    if (score >= 20) return 'bg-red-600';
+    if (score >= 12) return 'bg-orange-500';
+    if (score >= 6) return 'bg-yellow-500';
+    return 'bg-green-500';
   };
 
-  const getTextColor = (likelihood: number, impact: number) => {
-    const score = likelihood * impact;
-    if (score >= 10) return "text-white";
-    return "text-slate-900";
+  const getCellOpacity = (count: number): string => {
+    if (count === 0) return 'opacity-20';
+    if (count <= 2) return 'opacity-40';
+    if (count <= 5) return 'opacity-60';
+    if (count <= 10) return 'opacity-80';
+    return 'opacity-100';
   };
 
   return (
-    <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-      <h3 className="text-lg font-bold text-white mb-4">Risk Matrix (5×5)</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              <th className="p-2 text-xs text-slate-400"></th>
-              {[1, 2, 3, 4, 5].map((likelihood) => (
-                <th
-                  key={likelihood}
-                  className="p-2 text-xs text-slate-400 text-center"
+    <div className="w-full">
+      <div className="grid grid-cols-6 gap-1">
+        {/* Top-left empty cell */}
+        <div className="h-8"></div>
+        
+        {/* Likelihood labels (horizontal) */}
+        {[1, 2, 3, 4, 5].map(l => (
+          <div key={`likelihood-${l}`} className="h-8 flex items-center justify-center text-xs text-slate-400 font-semibold">
+            L{l}
+          </div>
+        ))}
+
+        {/* Matrix rows */}
+        {matrix.map((row, rowIndex) => (
+          <React.Fragment key={`row-${rowIndex}`}>
+            {/* Impact label (vertical) */}
+            <div className="h-12 flex items-center justify-center text-xs text-slate-400 font-semibold">
+              I{5 - rowIndex}
+            </div>
+            
+            {/* Matrix cells */}
+            {row.map((count, colIndex) => {
+              const likelihood = colIndex + 1;
+              const impact = 5 - rowIndex;
+              const colorClass = getColor(likelihood, impact);
+              const opacityClass = getCellOpacity(count);
+              
+              return (
+                <div
+                  key={`cell-${rowIndex}-${colIndex}`}
+                  className={`h-12 ${colorClass} ${opacityClass} rounded flex items-center justify-center border border-slate-700 relative`}
                 >
-                  L{likelihood}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[5, 4, 3, 2, 1].map((impact, impactIdx) => (
-              <tr key={impact}>
-                <td className="p-2 text-xs text-slate-400 text-right pr-4">
-                  I{impact}
-                </td>
-                {[1, 2, 3, 4, 5].map((likelihood, likelihoodIdx) => {
-                  const count = matrix[impactIdx][likelihoodIdx];
-                  const score = likelihood * impact;
-                  return (
-                    <td
-                      key={likelihood}
-                      className={`p-3 border border-slate-600 text-center ${getColor(
-                        likelihood,
-                        impact
-                      )} ${getTextColor(likelihood, impact)} min-w-[60px]`}
-                    >
-                      <div className="font-bold">{score}</div>
-                      {count > 0 && (
-                        <div className="text-xs mt-1">({count})</div>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-red-900 mr-2"></div>
-              <span>High (20-25)</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-orange-600 mr-2"></div>
-              <span>Medium (10-19)</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-green-600 mr-2"></div>
-              <span>Low (1-9)</span>
-            </div>
-          </div>
-          <div>
-            <span>L = Likelihood, I = Impact</span>
-          </div>
+                  {count > 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs font-bold text-slate-900">
+                        {count}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-red-600 rounded"></div>
+          <span className="text-slate-400">Critical (20-25)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-orange-500 rounded"></div>
+          <span className="text-slate-400">High (12-19)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+          <span className="text-slate-400">Medium (6-11)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-green-500 rounded"></div>
+          <span className="text-slate-400">Low (1-5)</span>
         </div>
       </div>
+
+      {/* Empty state message */}
+      {(!data || data.length === 0) && (
+        <div className="mt-4 text-center text-sm text-slate-500">
+          No risk data available
+        </div>
+      )}
     </div>
   );
-}
+};
 
+export default RiskMatrix;
