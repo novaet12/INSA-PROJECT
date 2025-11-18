@@ -5,65 +5,141 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
 
-type QuestionnaireResponse = {
-  question: string;
-  answer: string | number | boolean;
-  category?: string;
-};
-
-type Questionnaire = {
+interface Risk {
   _id: string;
-  externalId?: string;
-  title: string;
-  responses: QuestionnaireResponse[];
-  fetchedAt?: string;
-  status?: string;
-};
+  description: string;
+  company?: string;
+  category: string;
+  level: string;
+  status: string;
+  likelihood: number;
+  impact: number;
+  owner: string;
+  createdAt: string;
+  gap?: string;
+  threat?: string;
+  mitigation?: string;
+  mitigationStrategy?: string;
+  mitigationCost?: number;
+  mitigationEffectiveness?: number;
+}
+
+interface Stats {
+  total: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  open: number;
+}
 
 export default function RisksPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
-  const [selected, setSelected] = useState<Questionnaire | null>(null);
-  const [registeredRisks, setRegisteredRisks] = useState<any[]>([]);
+  
+  const [allRisks, setAllRisks] = useState<Risk[]>([]);
+  const [filteredRisks, setFilteredRisks] = useState<Risk[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // fetch registered risks (function declaration so it's available when effects run)
-  async function fetchRegisteredRisks() {
-    try {
-      const res = await fetch('/api/risks/list');
-      const data = await res.json();
-      if (data.success) {
-        setRegisteredRisks(data.risks || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch registered risks', err);
-    }
-  }
+  
+  // Filter states
+  const [companyFilter, setCompanyFilter] = useState("");
+  const [levelFilter, setLevelFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated") {
-      fetchQuestionnaires();
       fetchRegisteredRisks();
     }
   }, [status, router]);
 
-  const fetchQuestionnaires = async () => {
+  useEffect(() => {
+    applyFilters();
+  }, [companyFilter, levelFilter, statusFilter, dateFilter, allRisks]);
+
+  const fetchRegisteredRisks = async () => {
     try {
-      const res = await fetch("/api/questionnaires/list");
+      const res = await fetch("/api/risks/list");
       const data = await res.json();
       if (data.success) {
-        setQuestionnaires(data.questionnaires || []);
-        if (data.questionnaires && data.questionnaires.length > 0) {
-          setSelected(data.questionnaires[0]);
-        }
+        setAllRisks(data.risks || []);
       }
-    } catch (error) {
-      console.error("Error fetching questionnaires:", error);
+    } catch (err) {
+      console.error("Failed to fetch registered risks", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const applyFilters = () => {
+    let filtered = [...allRisks];
+
+    if (companyFilter) {
+      filtered = filtered.filter((risk) =>
+        (risk.company || "").toLowerCase().includes(companyFilter.toLowerCase())
+      );
+    }
+
+    if (levelFilter) {
+      filtered = filtered.filter((risk) => risk.level === levelFilter);
+    }
+
+    if (statusFilter) {
+      filtered = filtered.filter((risk) => risk.status === statusFilter);
+    }
+
+    if (dateFilter) {
+      filtered = filtered.filter((risk) => {
+        const riskDate = new Date(risk.createdAt).toISOString().split("T")[0];
+        return riskDate === dateFilter;
+      });
+    }
+
+    setFilteredRisks(filtered);
+  };
+
+  const calculateStats = (): Stats => {
+    return {
+      total: filteredRisks.length,
+      critical: filteredRisks.filter((r) => r.level === "critical").length,
+      high: filteredRisks.filter((r) => r.level === "high").length,
+      medium: filteredRisks.filter((r) => r.level === "medium").length,
+      low: filteredRisks.filter((r) => r.level === "low").length,
+      open: filteredRisks.filter((r) => r.status === "open").length,
+    };
+  };
+
+  const stats = calculateStats();
+
+  const getLevelColor = (level: string) => {
+    switch (level) {
+      case "critical": return "text-red-600 bg-red-600/20 border-red-600/30";
+      case "high": return "text-orange-500 bg-orange-500/20 border-orange-500/30";
+      case "medium": return "text-yellow-500 bg-yellow-500/20 border-yellow-500/30";
+      case "low": return "text-green-500 bg-green-500/20 border-green-500/30";
+      default: return "text-slate-400 bg-slate-400/20 border-slate-400/30";
+    }
+  };
+
+  const getLevelIcon = (level: string) => {
+    switch (level) {
+      case "critical": return "🔴";
+      case "high": return "🟠";
+      case "medium": return "🟡";
+      case "low": return "🟢";
+      default: return "⚪";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "open": return "🔓";
+      case "mitigated": return "✅";
+      case "accepted": return "📝";
+      case "transferred": return "↗️";
+      default: return "❓";
     }
   };
 
@@ -79,331 +155,227 @@ export default function RisksPage() {
 
   if (!session) return null;
 
-  const extractMeta = (q: Questionnaire) => {
-    // Try to find company/position in responses
-    const flattened = q.responses || [];
-    const companyResp = flattened.find((r) =>
-      /(company|organization|org|employer)/i.test(r.question || "")
-    );
-    const positionResp = flattened.find((r) => /(position|role|title)/i.test(r.question || ""));
-    const filledBy = flattened.find((r) => /(name|fullname|filled by|submitted by)/i.test(r.question || ""));
-
-    return {
-      company: companyResp ? String(companyResp.answer) : "",
-      position: positionResp ? String(positionResp.answer) : "",
-      person: filledBy ? String(filledBy.answer) : "",
-    };
-  };
-
-  const handleCreateRisk = async (payload: any) => {
-    try {
-      const res = await fetch("/api/risks/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert("Risk created successfully");
-        // refresh registered risks list
-        fetchRegisteredRisks();
-      } else {
-        alert("Failed to create risk: " + (data.error || ""));
-      }
-    } catch (error) {
-      console.error("Error creating risk:", error);
-      alert("Error creating risk");
-    }
-  };
-
-  
-
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-white">Questionnaire Register</h1>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => fetchQuestionnaires()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
-            >
-              Refresh
-            </button>
-          </div>
+          <h1 className="text-3xl font-bold text-white">🛡️ Risk Register</h1>
+          <button
+            onClick={fetchRegisteredRisks}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition flex items-center gap-2"
+          >
+            <span>↻</span>
+            <span>Refresh</span>
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1 bg-slate-800 rounded-lg border border-slate-700 p-4">
-            <h2 className="text-lg font-bold text-white mb-4">Questionnaires</h2>
-            <div className="space-y-2 max-h-[70vh] overflow-auto">
-              {questionnaires.length === 0 ? (
-                <div className="text-slate-400">No questionnaires found.</div>
-              ) : (
-                questionnaires.map((q) => (
-                  <button
-                    key={q._id}
-                    onClick={() => setSelected(q)}
-                    className={`w-full text-left p-3 rounded-md transition ${selected?._id === q._id ? "bg-slate-700" : "hover:bg-slate-700/50"}`}
-                  >
-                    <div className="text-sm font-medium text-white">{q.title}</div>
-                    <div className="text-xs text-slate-400">{q.externalId || q._id}</div>
-                  </button>
-                ))
-              )}
+        {/* Filters */}
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <h3 className="text-lg font-bold text-white mb-4">🔍 Filter Risks</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs text-slate-400 mb-2">Company Name</label>
+              <input
+                type="text"
+                value={companyFilter}
+                onChange={(e) => setCompanyFilter(e.target.value)}
+                placeholder="Filter by company..."
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-2">Risk Level</label>
+              <select
+                value={levelFilter}
+                onChange={(e) => setLevelFilter(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">All Levels</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-2">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">All Status</option>
+                <option value="open">Open</option>
+                <option value="mitigated">Mitigated</option>
+                <option value="accepted">Accepted</option>
+                <option value="transferred">Transferred</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-2">Created Date</label>
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm focus:border-blue-500 focus:outline-none"
+              />
             </div>
           </div>
+        </div>
 
-          <div className="lg:col-span-3 space-y-4">
-            {selected ? (
-              <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-white">{selected.title}</h2>
-                    <div className="text-sm text-slate-400">Fetched: {new Date(selected.fetchedAt || Date.now()).toLocaleString()}</div>
-                    <div className="text-sm text-slate-400">ID: {selected.externalId || selected._id}</div>
-                  </div>
-                  <div className="text-sm text-slate-300 text-right">
-                    {(() => {
-                      const meta = extractMeta(selected);
-                      return (
-                        <div>
-                          <div><strong>Company:</strong> {meta.company || "-"}</div>
-                          <div><strong>Position:</strong> {meta.position || "-"}</div>
-                          <div><strong>Person:</strong> {meta.person || "-"}</div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  {(selected.responses || []).map((resp, idx) => (
-                    <QuestionItem
-                      key={idx}
-                      question={resp.question || String(idx + 1)}
-                      answer={String(resp.answer ?? "")}
-                      company={extractMeta(selected).company}
-                      person={extractMeta(selected).person}
-                      onCreateRisk={handleCreateRisk}
-                      defaultOwner={(session?.user as any)?.email || ""}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                <div className="text-slate-400">Select a questionnaire to view questions and create risks.</div>
-              </div>
-            )}
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+            <h4 className="text-xs text-slate-400 mb-1">Total Risks</h4>
+            <div className="text-2xl font-bold text-white">{stats.total}</div>
+          </div>
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+            <h4 className="text-xs text-slate-400 mb-1">Critical</h4>
+            <div className="text-2xl font-bold text-red-600">{stats.critical}</div>
+          </div>
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+            <h4 className="text-xs text-slate-400 mb-1">High</h4>
+            <div className="text-2xl font-bold text-orange-500">{stats.high}</div>
+          </div>
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+            <h4 className="text-xs text-slate-400 mb-1">Medium</h4>
+            <div className="text-2xl font-bold text-yellow-500">{stats.medium}</div>
+          </div>
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+            <h4 className="text-xs text-slate-400 mb-1">Low</h4>
+            <div className="text-2xl font-bold text-green-500">{stats.low}</div>
+          </div>
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+            <h4 className="text-xs text-slate-400 mb-1">Open Risks</h4>
+            <div className="text-2xl font-bold text-yellow-400">{stats.open}</div>
           </div>
         </div>
-      </div>
 
-      <div className="mt-8">
-        <h2 className="text-2xl font-semibold text-white mb-4">Registered Risks</h2>
-        <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
-          {registeredRisks.length === 0 ? (
-            <div className="text-slate-400">No registered risks found.</div>
+        {/* Risks List */}
+        <div className="space-y-4">
+          {filteredRisks.length === 0 ? (
+            <div className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg p-12 text-center">
+              <div className="text-6xl mb-4 opacity-30">📋</div>
+              <p className="text-white font-semibold mb-2">No risks found</p>
+              <p className="text-slate-400">Try adjusting your filters or add new risks to the register</p>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {registeredRisks.map((r) => (
-                <div key={r._id || r.riskId} className="flex items-start justify-between bg-slate-900 p-3 rounded">
-                  <div>
-                    <div className="text-sm text-slate-300">{r.description}</div>
-                    <div className="text-xs text-slate-400">Level: {r.level || r.level?.toString?.() || 'n/a'} — Owner: {r.owner || r.createdBy || 'n/a'}</div>
+            filteredRisks.map((risk) => {
+              const riskScore = risk.likelihood * risk.impact;
+              const effectiveness = risk.mitigationEffectiveness || 0;
+              const postLikelihood = Math.max(1, Math.round(risk.likelihood * (1 - effectiveness / 100)));
+              const postImpact = Math.max(1, Math.round(risk.impact * (1 - effectiveness / 100)));
+              const postScore = postLikelihood * postImpact;
+
+              return (
+                <div
+                  key={risk._id}
+                  className={`bg-slate-800 rounded-lg border-l-4 p-6 hover:transform hover:-translate-y-1 transition-all ${
+                    risk.level === "critical" ? "border-l-red-600" :
+                    risk.level === "high" ? "border-l-orange-500" :
+                    risk.level === "medium" ? "border-l-yellow-500" :
+                    "border-l-green-500"
+                  }`}
+                >
+                  {/* Header */}
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-white mb-3">{risk.description}</h3>
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getLevelColor(risk.level)}`}>
+                        {getLevelIcon(risk.level)} {risk.level.toUpperCase()}
+                      </span>
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-600/20 text-blue-400 border border-blue-600/30">
+                        {getStatusIcon(risk.status)} {risk.status.charAt(0).toUpperCase() + risk.status.slice(1)}
+                      </span>
+                      {risk.company && (
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-600/20 text-purple-400 border border-purple-600/30">
+                          🏢 {risk.company}
+                        </span>
+                      )}
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-pink-600/20 text-pink-400 border border-pink-600/30">
+                        📊 {risk.category}
+                      </span>
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-700/50 text-slate-300 border border-slate-600">
+                        📅 {new Date(risk.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={async () => {
-                        const ok = confirm('Delete this risk? This cannot be undone');
-                        if (!ok) return;
-                        try {
-                          const id = r.riskId || r._id;
-                          const res = await fetch(`/api/risks/delete?riskId=${encodeURIComponent(id)}`, { method: 'DELETE' });
-                          const d = await res.json();
-                          if (d.success) {
-                            fetchRegisteredRisks();
-                          } else {
-                            alert('Failed to delete: ' + (d.error || ''));
-                          }
-                        } catch (err) {
-                          console.error('Delete error', err);
-                          alert('Error deleting risk');
-                        }
-                      }}
-                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded"
-                    >
-                      Delete
-                    </button>
+
+                  {/* Details Sections */}
+                  <div className="space-y-3 mb-4">
+                    {risk.gap && (
+                      <div className="bg-slate-900/50 rounded p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">⚠️</span>
+                          <span className="text-xs font-semibold text-white uppercase tracking-wider">Gap Analysis</span>
+                        </div>
+                        <p className="text-sm text-slate-300 leading-relaxed">{risk.gap}</p>
+                      </div>
+                    )}
+
+                    {risk.threat && (
+                      <div className="bg-slate-900/50 rounded p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">🎯</span>
+                          <span className="text-xs font-semibold text-white uppercase tracking-wider">Threat Assessment</span>
+                        </div>
+                        <p className="text-sm text-slate-300 leading-relaxed">{risk.threat}</p>
+                      </div>
+                    )}
+
+                    {(risk.mitigation || risk.mitigationStrategy) && (
+                      <div className="bg-slate-900/50 rounded p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">🔧</span>
+                          <span className="text-xs font-semibold text-white uppercase tracking-wider">Mitigation Strategy</span>
+                        </div>
+                        <p className="text-sm text-slate-300 leading-relaxed">
+                          {risk.mitigation || risk.mitigationStrategy}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Metrics */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-700">
+                    <div className="text-center">
+                      <div className="text-xs text-slate-400 mb-1">Pre-Mitigation</div>
+                      <div className="text-2xl font-bold text-white">{riskScore}</div>
+                      <div className="text-xs text-slate-500">L{risk.likelihood} × I{risk.impact}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-slate-400 mb-1">Post-Mitigation</div>
+                      <div className="text-2xl font-bold text-green-500">{postScore}</div>
+                      <div className="text-xs text-slate-500">L{postLikelihood} × I{postImpact}</div>
+                    </div>
+                    {risk.mitigationCost !== undefined && (
+                      <div className="text-center">
+                        <div className="text-xs text-slate-400 mb-1">Cost</div>
+                        <div className="text-xl font-bold text-white">
+                          ${(risk.mitigationCost / 1000).toFixed(0)}K
+                        </div>
+                      </div>
+                    )}
+                    {risk.mitigationEffectiveness !== undefined && (
+                      <div className="text-center">
+                        <div className="text-xs text-slate-400 mb-1">Effectiveness</div>
+                        <div className="text-xl font-bold text-white">{risk.mitigationEffectiveness}%</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Owner */}
+                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-700 text-sm text-slate-400">
+                    <span>👤</span>
+                    <span><strong className="text-white">Risk Owner:</strong> {risk.owner}</span>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })
           )}
         </div>
       </div>
     </Layout>
   );
 }
-
-function QuestionItem({ question, answer, company, person, onCreateRisk, defaultOwner }: any) {
-  const [riskName, setRiskName] = useState("");
-  const [category, setCategory] = useState("");
-  const [status, setStatus] = useState("open");
-  const [type, setType] = useState("risk");
-  const [nature, setNature] = useState("threat");
-  const [level, setLevel] = useState("operational");
-
-  const [preProb, setPreProb] = useState<number>(3);
-  const [preImpact, setPreImpact] = useState<number>(3);
-  const preScore = preProb * preImpact;
-
-  const [mitigationCost, setMitigationCost] = useState<number>(0);
-  const [mitigationEffectiveness, setMitigationEffectiveness] = useState<number>(0); // percent 0-100
-
-  // Compute post values by reducing prob/impact by effectiveness
-  const calcPost = (val: number) => {
-    const reduced = val * (1 - mitigationEffectiveness / 100);
-    // Map back to 1-5 integer scale
-    const clamped = Math.max(1, Math.min(5, Math.round(reduced)));
-    return clamped;
-  };
-
-  const postProb = calcPost(preProb);
-  const postImpact = calcPost(preImpact);
-  const postScore = postProb * postImpact;
-
-  // Percentage equivalents for display (map 1-5 -> 20%-100%)
-  const preProbPercent = Math.round((preProb / 5) * 100);
-  const preImpactPercent = Math.round((preImpact / 5) * 100);
-  const postProbPercent = Math.round((postProb / 5) * 100);
-  const postImpactPercent = Math.round((postImpact / 5) * 100);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const payload = {
-      description: `${question} — Answer: ${answer}\nCompany: ${company || ""}\nPerson: ${person || ""}`,
-      category: category || "Uncategorized",
-      level: level || "low",
-      likelihood: preProb,
-      impact: preImpact,
-      status: status,
-      mitigationStrategy: `Mitigation cost: ${mitigationCost}, effectiveness: ${mitigationEffectiveness}%`,
-      owner: defaultOwner || "",
-    };
-
-    await onCreateRisk(payload);
-  };
-
-  return (
-    <div className="bg-slate-900 rounded-md border border-slate-700 p-4">
-      <div className="mb-2">
-        <div className="text-sm text-slate-300 font-medium">Question</div>
-        <div className="text-white">{question}</div>
-      </div>
-      <div className="mb-4">
-        <div className="text-sm text-slate-300 font-medium">Answer</div>
-        <div className="text-slate-200 whitespace-pre-wrap">{answer}</div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs text-slate-400">Risk Name</label>
-            <input value={riskName} onChange={(e) => setRiskName(e.target.value)} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400">Category</label>
-            <input value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400">Status</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white">
-              <option value="open">Open</option>
-              <option value="mitigated">Mitigated</option>
-              <option value="accepted">Accepted</option>
-              <option value="transferred">Transferred</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs text-slate-400">Type</label>
-            <select value={type} onChange={(e) => setType(e.target.value)} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white">
-              <option value="risk">Risk</option>
-              <option value="issue">Issue</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400">Threat / Opportunity</label>
-            <select value={nature} onChange={(e) => setNature(e.target.value)} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white">
-              <option value="threat">Threat</option>
-              <option value="opportunity">Opportunity</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400">Level</label>
-            <select value={level} onChange={(e) => setLevel(e.target.value)} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white">
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
-        </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-          <div>
-            <label className="block text-xs text-slate-400">Prob. (pre) 1-5</label>
-            <input type="number" min={1} max={5} value={preProb} onChange={(e) => setPreProb(Number(e.target.value))} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" />
-            <div className="text-xs text-slate-400 mt-1">{preProbPercent}%</div>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400">Impact (pre) 1-5</label>
-            <input type="number" min={1} max={5} value={preImpact} onChange={(e) => setPreImpact(Number(e.target.value))} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" />
-            <div className="text-xs text-slate-400 mt-1">{preImpactPercent}%</div>
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs text-slate-400">Score (pre)</label>
-            <div className="px-3 py-2 rounded bg-slate-900 text-white">{preScore}</div>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400">Mitigation Cost</label>
-            <input type="number" min={0} value={mitigationCost} onChange={(e) => setMitigationCost(Number(e.target.value))} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400">Mitigation Eff. %</label>
-            <input type="number" min={0} max={100} value={mitigationEffectiveness} onChange={(e) => setMitigationEffectiveness(Number(e.target.value))} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs text-slate-400">Prob. (post)</label>
-            <div className="px-3 py-2 rounded bg-slate-900 text-white">{postProb} ({postProbPercent}%)</div>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400">Impact (post)</label>
-            <div className="px-3 py-2 rounded bg-slate-900 text-white">{postImpact} ({postImpactPercent}%)</div>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400">Score (post)</label>
-            <div className="px-3 py-2 rounded bg-slate-900 text-white">{postScore}</div>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs text-slate-400">Description / Notes</label>
-          <textarea className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white" rows={3} />
-        </div>
-
-        <div className="flex space-x-2">
-          <button type="submit" className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md">Create Risk</button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
