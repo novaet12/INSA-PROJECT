@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     }
 
     // helper to normalize different buffer-like returns into ArrayBuffer
-    function toArrayBuffer(input: any): ArrayBuffer {
+    function toArrayBuffer(input: any): ArrayBuffer { // eslint-disable-line @typescript-eslint/no-explicit-any
       if (!input) return new ArrayBuffer(0);
       // Node Buffer
       if (Buffer.isBuffer(input)) {
@@ -63,10 +63,10 @@ export async function GET(req: NextRequest) {
       doc.setFontSize(16);
       doc.text(`${report.level.toUpperCase()} Risk Report`, 20, 20);
       doc.setFontSize(12);
-      
+
       const content = report.content.split("\n");
       let yPos = 40;
-      
+
       content.forEach((line: string) => {
         if (yPos > 270) {
           doc.addPage();
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
     } else if (format === "PPTX") {
       const pptx = new PptxGenJS();
       pptx.layout = "LAYOUT_WIDE";
-      
+
       // Title slide
       const titleSlide = pptx.addSlide();
       titleSlide.addText(`${report.level.toUpperCase()} Risk Report`, {
@@ -150,7 +150,7 @@ export async function GET(req: NextRequest) {
 
       // Content slides
       const content = report.content.split("\n\n");
-      content.forEach((section: string, index: number) => {
+      content.forEach((section: string) => {
         if (section.trim()) {
           const slide = pptx.addSlide();
           slide.addText(section.substring(0, 100), {
@@ -198,7 +198,7 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       );
     }
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error("Error exporting report:", error);
     return NextResponse.json(
       { error: error.message || "Failed to export report" },

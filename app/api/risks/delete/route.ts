@@ -34,7 +34,7 @@ export async function DELETE(req: NextRequest) {
       success: true,
       message: "Risk deleted successfully",
     });
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error("Error deleting risk:", error);
     return NextResponse.json(
       { error: error.message || "Failed to delete risk" },

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
-type ReportLevel = "strategic" | "tactical" | "operational";
+type ReportLevel = "strategic" | "tactical" | "operational" | "awareness";
 
 interface Report {
   _id: string;
@@ -20,14 +20,21 @@ interface Report {
   generatedAt: string;
 }
 
+interface Risk {
+  _id: string;
+  description: string;
+  level: string;
+  riskId: string;
+}
+
 export default function ReportsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [activeLevel, setActiveLevel] = useState<string>("critical");
-  const [reports, setReports] = useState<Report[]>([]);
+  // const [reports, setReports] = useState<Report[]>([]);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
-  const [risksByLevel, setRisksByLevel] = useState<Record<string, any[]>>({});
+  const [risksByLevel, setRisksByLevel] = useState<Record<string, Risk[]>>({});
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -36,15 +43,15 @@ export default function ReportsPage() {
       fetchReports();
       fetchRegisteredRisks();
     }
-  }, [status, router, activeLevel]);
+  }, [status, router, activeLevel]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchRegisteredRisks = async () => {
+  const fetchRegisteredRisks = useCallback(async () => {
     try {
       const res = await fetch("/api/risks/list");
       const data = await res.json();
       if (data.success) {
-        const grouped: Record<string, any[]> = { critical: [], high: [], medium: [], low: [] };
-        (data.risks || []).forEach((r: any) => {
+        const grouped: Record<string, Risk[]> = { critical: [], high: [], medium: [], low: [] };
+        (data.risks || []).forEach((r: Risk) => {
           const lvl = r.level || "low";
           if (!grouped[lvl]) grouped[lvl] = [];
           grouped[lvl].push(r);
@@ -54,9 +61,9 @@ export default function ReportsPage() {
     } catch (error) {
       console.error("Error fetching registered risks:", error);
     }
-  };
+  }, []);
 
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     try {
       if (activeLevel === "awareness") {
         // Fetch awareness reports from a different endpoint
@@ -66,18 +73,18 @@ export default function ReportsPage() {
           // Convert awareness report to report format for display
           setSelectedReport(data.report ? {
             _id: "awareness",
-            level: "awareness" as any,
+            level: "awareness" as ReportLevel,
             content: data.report.content,
             riskMatrix: data.report.riskMatrix || { high: 0, medium: 0, low: 0 },
             generatedAt: data.report.generatedAt || new Date().toISOString(),
           } : null);
-          setReports([]);
+          // setReports([]);
         }
       } else {
         const response = await fetch(`/api/reports/list?level=${activeLevel}`);
         const data = await response.json();
         if (data.success) {
-          setReports(data.reports || []);
+          // setReports(data.reports || []);
           if (data.reports && data.reports.length > 0) {
             setSelectedReport(data.reports[0]);
           } else {
@@ -90,7 +97,7 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeLevel]);
 
   const handleExport = async (format: "PDF" | "DOCX" | "PPTX") => {
     if (!selectedReport) return;
@@ -138,10 +145,10 @@ export default function ReportsPage() {
 
   const chartData = selectedReport
     ? [
-        { name: "High", value: selectedReport.riskMatrix.high, color: "#ef4444" },
-        { name: "Medium", value: selectedReport.riskMatrix.medium, color: "#eab308" },
-        { name: "Low", value: selectedReport.riskMatrix.low, color: "#22c55e" },
-      ]
+      { name: "High", value: selectedReport.riskMatrix.high, color: "#ef4444" },
+      { name: "Medium", value: selectedReport.riskMatrix.medium, color: "#eab308" },
+      { name: "Low", value: selectedReport.riskMatrix.low, color: "#22c55e" },
+    ]
     : [];
 
   return (
@@ -155,11 +162,10 @@ export default function ReportsPage() {
             <button
               key={level.value}
               onClick={() => setActiveLevel(level.value)}
-              className={`px-6 py-3 font-medium transition ${
-                activeLevel === level.value
-                  ? "text-blue-400 border-b-2 border-blue-400"
-                  : "text-slate-400 hover:text-slate-300"
-              }`}
+              className={`px-6 py-3 font-medium transition ${activeLevel === level.value
+                ? "text-blue-400 border-b-2 border-blue-400"
+                : "text-slate-400 hover:text-slate-300"
+                }`}
             >
               {level.label}
             </button>
@@ -190,54 +196,54 @@ export default function ReportsPage() {
             {/* Risk Matrix Visualization */}
             <div className="space-y-6">
 
-                {chartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={chartData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {chartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="text-slate-400 text-center py-8">No data available</div>
-                )}
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-slate-400 text-center py-8">No data available</div>
+              )}
 
-                {/* Registered risks by level (separate block) */}
-                <div className="mt-6 bg-slate-800 rounded-lg border border-slate-700 p-6">
-                  <h3 className="text-lg font-bold text-white mb-4">Registered Risks by Level</h3>
-                  <div className="space-y-4">
-                    {(["critical", "high", "medium", "low"] as const).map((lvl) => (
-                      <div key={lvl}>
-                        <div className="text-sm text-slate-300 font-medium mb-2">
-                          {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
-                        </div>
-                        <div className="space-y-1">
-                          {(risksByLevel[lvl] || []).slice(0, 5).map((r: any) => (
-                            <div key={r._id} className="flex justify-between items-center bg-slate-900 p-2 rounded">
-                              <div className="text-sm text-white truncate">{r.description}</div>
-                              <div className="text-xs text-slate-400 ml-2">{r.riskId}</div>
-                            </div>
-                          ))}
-                          {(risksByLevel[lvl] || []).length === 0 && (
-                            <div className="text-xs text-slate-400">No registered risks</div>
-                          )}
-                        </div>
+              {/* Registered risks by level (separate block) */}
+              <div className="mt-6 bg-slate-800 rounded-lg border border-slate-700 p-6">
+                <h3 className="text-lg font-bold text-white mb-4">Registered Risks by Level</h3>
+                <div className="space-y-4">
+                  {(["critical", "high", "medium", "low"] as const).map((lvl) => (
+                    <div key={lvl}>
+                      <div className="text-sm text-slate-300 font-medium mb-2">
+                        {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
                       </div>
-                    ))}
-                  </div>
+                      <div className="space-y-1">
+                        {(risksByLevel[lvl] || []).slice(0, 5).map((r: Risk) => (
+                          <div key={r._id} className="flex justify-between items-center bg-slate-900 p-2 rounded">
+                            <div className="text-sm text-white truncate">{r.description}</div>
+                            <div className="text-xs text-slate-400 ml-2">{r.riskId}</div>
+                          </div>
+                        ))}
+                        {(risksByLevel[lvl] || []).length === 0 && (
+                          <div className="text-xs text-slate-400">No registered risks</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              </div>
 
 
               <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">

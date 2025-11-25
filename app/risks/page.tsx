@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
@@ -36,10 +36,10 @@ interface Stats {
 export default function RisksPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
+
   const [allRisks, setAllRisks] = useState<Risk[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Filter states
   const [companyFilter, setCompanyFilter] = useState("");
   const [levelFilter, setLevelFilter] = useState("");
@@ -52,24 +52,24 @@ export default function RisksPage() {
     } else if (status === "authenticated") {
       fetchRegisteredRisks();
     }
-  }, [status, router]);
+  }, [status, router, fetchRegisteredRisks]);
 
   // Re-fetch when filters change
   useEffect(() => {
     if (status === "authenticated") {
       fetchRegisteredRisks();
     }
-  }, [companyFilter, levelFilter, statusFilter, dateFilter, status]);
+  }, [fetchRegisteredRisks, status]);
 
   // ✅ CHANGED: Now uses query parameters for server-side filtering
-  const fetchRegisteredRisks = async () => {
+  const fetchRegisteredRisks = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (companyFilter) params.append('company', companyFilter);
       if (levelFilter) params.append('level', levelFilter);
       if (statusFilter) params.append('status', statusFilter);
       if (dateFilter) params.append('dateFrom', dateFilter);
-      
+
       const res = await fetch(`/api/risks/list?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
@@ -80,7 +80,7 @@ export default function RisksPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [companyFilter, levelFilter, statusFilter, dateFilter]);
 
   const calculateStats = (): Stats => {
     return {
@@ -253,12 +253,11 @@ export default function RisksPage() {
               return (
                 <div
                   key={risk._id}
-                  className={`bg-slate-800 rounded-lg border-l-4 p-6 hover:transform hover:-translate-y-1 transition-all ${
-                    risk.level === "critical" ? "border-l-red-600" :
-                    risk.level === "high" ? "border-l-orange-500" :
-                    risk.level === "medium" ? "border-l-yellow-500" :
-                    "border-l-green-500"
-                  }`}
+                  className={`bg-slate-800 rounded-lg border-l-4 p-6 hover:transform hover:-translate-y-1 transition-all ${risk.level === "critical" ? "border-l-red-600" :
+                      risk.level === "high" ? "border-l-orange-500" :
+                        risk.level === "medium" ? "border-l-yellow-500" :
+                          "border-l-green-500"
+                    }`}
                 >
                   {/* Header */}
                   <div className="mb-4">

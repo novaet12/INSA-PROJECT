@@ -4,9 +4,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useState } from "react";
+import NotificationPanel from "./NotificationPanel";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard" },
@@ -34,11 +37,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <li key={item.name}>
                     <Link
                       href={item.href}
-                      className={`block px-4 py-2 rounded-md transition ${
-                        isActive
-                          ? "bg-slate-700 text-white"
-                          : "text-slate-300 hover:bg-slate-700 hover:text-white"
-                      }`}
+                      className={`block px-4 py-2 rounded-md transition ${isActive
+                        ? "bg-slate-700 text-white"
+                        : "text-slate-300 hover:bg-slate-700 hover:text-white"
+                        }`}
                     >
                       {item.name}
                     </Link>
@@ -48,8 +50,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </ul>
           </nav>
 
-          {/* Bottom area: Sign Out */}
-          <div className="p-4 border-t border-slate-700">
+          {/* Bottom area: Notifications & Sign Out */}
+          <div className="p-4 border-t border-slate-700 space-y-2 relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md transition flex items-center justify-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+              </svg>
+              Notifications
+            </button>
+
+            {showNotifications && (
+              <NotificationPanel onClose={() => setShowNotifications(false)} />
+            )}
+
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
               className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition"

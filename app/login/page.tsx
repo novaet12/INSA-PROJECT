@@ -31,6 +31,7 @@ export default function LoginPage() {
         router.refresh();
       }
     } catch (err) {
+      console.error(err);
       setError("An error occurred. Please try again.");
     } finally {
       setLoading(false);
@@ -110,7 +111,7 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-4 text-center text-slate-400 text-sm">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="/signup" className="text-blue-400 hover:text-blue-300">
               Sign up
             </Link>

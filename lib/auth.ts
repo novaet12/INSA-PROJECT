@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getServerSession } from "next-auth/next";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -77,7 +78,6 @@ export async function getSession() {
 export function requireAuth(roles?: UserRole[]) {
   return async (req: any, res: any, next: any) => {
     const session = await getSession();
-    
     if (!session) {
       return res.status(401).json({ error: "Unauthorized" });
     }

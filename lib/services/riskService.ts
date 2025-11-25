@@ -1,4 +1,5 @@
 // lib/services/riskService.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import connectDB from "@/lib/mongodb";
 import RiskRegister from "@/models/RiskRegister";
 
@@ -23,7 +24,7 @@ export class RiskService {
   // Create a new risk
   static async createRisk(data: CreateRiskDTO) {
     await connectDB();
-    
+
     const risk = await RiskRegister.create({
       ...data,
       createdAt: new Date(),
@@ -81,7 +82,7 @@ export class RiskService {
   // Update risk
   static async updateRisk(riskId: string, data: Partial<CreateRiskDTO>) {
     await connectDB();
-    
+
     const risk = await RiskRegister.findByIdAndUpdate(
       riskId,
       { ...data, updatedAt: new Date() },

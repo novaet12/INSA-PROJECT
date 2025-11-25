@@ -71,7 +71,7 @@ export async function PUT(req: NextRequest) {
       success: true,
       risk,
     });
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error("Error updating risk:", error);
     return NextResponse.json(
       { error: error.message || "Failed to update risk" },

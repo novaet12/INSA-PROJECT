@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const level = searchParams.get("level");
 
-    const query: any = {};
+    const query: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
     if (level && ["strategic", "tactical", "operational"].includes(level)) {
       query.level = level;
     }
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       success: true,
       reports,
     });
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error("Error fetching reports:", error);
     return NextResponse.json(
       { error: error.message || "Failed to fetch reports" },

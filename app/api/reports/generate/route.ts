@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       success: true,
       report: savedReport,
     });
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error("Error generating report:", error);
     return NextResponse.json(
       { error: error.message || "Failed to generate report" },

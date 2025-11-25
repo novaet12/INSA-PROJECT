@@ -51,12 +51,12 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "assessment">("overview");
-  
+
   // Assessment states
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
   const [processedAssessments, setProcessedAssessments] = useState<ProcessedAssessment[]>([]);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  
+
   // Filters
   const [companyFilter, setCompanyFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -146,6 +146,7 @@ export default function DashboardPage() {
         setMessage({ type: 'error', text: data.error || 'Analysis failed' });
       }
     } catch (error) {
+      console.error(error);
       setMessage({ type: 'error', text: 'Error triggering analysis' });
     }
   };
@@ -153,7 +154,7 @@ export default function DashboardPage() {
   const openRegisterRiskModal = (analysis: QuestionAnalysis, company: string) => {
     setRegisteringRisk(analysis);
     setSelectedCompany(company);
-    setRiskFormData({ category: "", status: "open", owner: (session?.user as any)?.email || "" });
+    setRiskFormData({ category: "", status: "open", owner: (session?.user as any)?.email || "" }); // eslint-disable-line @typescript-eslint/no-explicit-any
   };
 
   const closeRegisterRiskModal = () => {
@@ -195,6 +196,7 @@ export default function DashboardPage() {
         setMessage({ type: 'error', text: data.error || 'Failed to register' });
       }
     } catch (error) {
+      console.error(error);
       setMessage({ type: 'error', text: 'Error registering risk' });
     }
   };
@@ -234,10 +236,9 @@ export default function DashboardPage() {
           {["overview", "assessment"].map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab as any)}
-              className={`px-6 py-3 font-medium transition ${
-                activeTab === tab ? "text-blue-400 border-b-2 border-blue-400" : "text-slate-400 hover:text-slate-300"
-              }`}
+              onClick={() => setActiveTab(tab as any)} // eslint-disable-line @typescript-eslint/no-explicit-any
+              className={`px-6 py-3 font-medium transition ${activeTab === tab ? "text-blue-400 border-b-2 border-blue-400" : "text-slate-400 hover:text-slate-300"
+                }`}
             >
               {tab === "overview" ? "Overview" : "Risk Assessment"}
             </button>
@@ -246,9 +247,8 @@ export default function DashboardPage() {
 
         {/* Messages */}
         {message && (
-          <div className={`p-4 rounded-lg ${
-            message.type === 'success' ? 'bg-green-600/20 border border-green-600/50 text-green-400' : 'bg-red-600/20 border border-red-600/50 text-red-400'
-          }`}>
+          <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-600/20 border border-green-600/50 text-green-400' : 'bg-red-600/20 border border-red-600/50 text-red-400'
+            }`}>
             {message.text}
           </div>
         )}
@@ -347,9 +347,8 @@ export default function DashboardPage() {
                             <div className="text-white font-medium">{q.company || "Unknown"}</div>
                             <div className="text-xs text-slate-400">{q.category || "Uncategorized"} • {q.responseCount || 0} responses</div>
                           </div>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            q.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400' : 'bg-green-600/20 text-green-400'
-                          }`}>
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${q.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400' : 'bg-green-600/20 text-green-400'
+                            }`}>
                             {q.status || "pending"}
                           </span>
                         </div>
@@ -428,11 +427,10 @@ export default function DashboardPage() {
                               <div><span className="text-slate-400">Risk Score:</span> <span className="text-white ml-2">{analysis.riskScore || 0}</span></div>
                               <div>
                                 <span className="text-slate-400">Level:</span>
-                                <span className={`ml-2 font-bold ${
-                                  analysis.riskLevel === 'CRITICAL' ? 'text-red-500' :
+                                <span className={`ml-2 font-bold ${analysis.riskLevel === 'CRITICAL' ? 'text-red-500' :
                                   analysis.riskLevel === 'HIGH' ? 'text-orange-500' :
-                                  analysis.riskLevel === 'MEDIUM' ? 'text-yellow-500' : 'text-green-500'
-                                }`}>{analysis.riskLevel || "UNKNOWN"}</span>
+                                    analysis.riskLevel === 'MEDIUM' ? 'text-yellow-500' : 'text-green-500'
+                                  }`}>{analysis.riskLevel || "UNKNOWN"}</span>
                               </div>
                             </div>
                           </div>
@@ -516,7 +514,7 @@ export default function DashboardPage() {
                 <input
                   type="text"
                   value={riskFormData.category}
-                  onChange={(e) => setRiskFormData({...riskFormData, category: e.target.value})}
+                  onChange={(e) => setRiskFormData({ ...riskFormData, category: e.target.value })}
                   placeholder="e.g., Data Security, Compliance"
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white"
                   required
@@ -532,7 +530,7 @@ export default function DashboardPage() {
                   <label className="block text-sm text-slate-400 mb-2">Status</label>
                   <select
                     value={riskFormData.status}
-                    onChange={(e) => setRiskFormData({...riskFormData, status: e.target.value})}
+                    onChange={(e) => setRiskFormData({ ...riskFormData, status: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white"
                   >
                     <option value="open">Open</option>
@@ -548,7 +546,7 @@ export default function DashboardPage() {
                 <input
                   type="email"
                   value={riskFormData.owner}
-                  onChange={(e) => setRiskFormData({...riskFormData, owner: e.target.value})}
+                  onChange={(e) => setRiskFormData({ ...riskFormData, owner: e.target.value })}
                   placeholder="owner@company.com"
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white"
                   required
