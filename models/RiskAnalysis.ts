@@ -1,67 +1,103 @@
-import mongoose, { Document, Model, Schema } from "mongoose";
+// models/RiskAnalysis.ts
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
-export type RiskCategory = "High" | "Medium" | "Low";
-
-export interface IVulnerability {
-  description: string;
-  likelihood: number; // 1-5
-  impact: number; // 1-5
-  category: RiskCategory;
-  recommendation: string;
+export interface IQuestionAnalysis {
+  questionId: number;
+  section: string;
+  question: string;
+  answer: string;
+  level: string;
+  analysis: {
+    likelihood: number;
+    impact: number;
+    riskScore: number;
+    riskLevel: string;
+    riskColor: string;
+    gap: string;
+    threat: string;
+    mitigation: string;
+  };
+  timestamp: Date;
 }
 
 export interface IRiskAnalysis extends Document {
   questionnaireId: mongoose.Types.ObjectId;
-  vulnerabilities: IVulnerability[];
-  riskScore: number;
-  category: RiskCategory;
-  inherentRisk: number;
-  residualRisk: number;
-  aiInsights: string;
-  analyzedAt: Date;
+  company: string;
+  category: string;
+  metadata: {
+    timestamp: Date;
+    totalQuestions: number;
+    levels: {
+      operational: number;
+      tactical: number;
+      strategic: number;
+    };
+  };
+  operational: IQuestionAnalysis[];
+  tactical: IQuestionAnalysis[];
+  strategic: IQuestionAnalysis[];
+  summary: {
+    operational: any;
+    tactical: any;
+    strategic: any;
+    overall: any;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
 
-const VulnerabilitySchema = new Schema({
-  description: { type: String, required: true },
-  likelihood: { type: Number, required: true, min: 1, max: 5 },
-  impact: { type: Number, required: true, min: 1, max: 5 },
-  category: {
-    type: String,
-    enum: ["High", "Medium", "Low"],
-    required: true,
+const QuestionAnalysisSchema = new Schema({
+  questionId: Number,
+  section: String,
+  question: String,
+  answer: String,
+  level: String,
+  analysis: {
+    likelihood: Number,
+    impact: Number,
+    riskScore: Number,
+    riskLevel: String,
+    riskColor: String,
+    gap: String,
+    threat: String,
+    mitigation: String
   },
-  recommendation: { type: String, required: true },
+  timestamp: Date
 });
 
-const RiskAnalysisSchema: Schema<IRiskAnalysis> = new Schema(
+const RiskAnalysisSchema = new Schema<IRiskAnalysis>(
   {
     questionnaireId: {
       type: Schema.Types.ObjectId,
-      ref: "Questionnaire",
+      ref: 'Questionnaire',
       required: true,
+      unique: true // Prevent duplicate analyses
     },
-    vulnerabilities: [VulnerabilitySchema],
-    riskScore: { type: Number, required: true, min: 1, max: 25 },
-    category: {
-      type: String,
-      enum: ["High", "Medium", "Low"],
-      required: true,
+    company: { type: String, required: true },
+    category: { type: String, required: true },
+    metadata: {
+      timestamp: Date,
+      totalQuestions: Number,
+      levels: {
+        operational: Number,
+        tactical: Number,
+        strategic: Number
+      }
     },
-    inherentRisk: { type: Number, required: true, min: 1, max: 25 },
-    residualRisk: { type: Number, required: true, min: 1, max: 25 },
-    aiInsights: { type: String, required: true },
-    analyzedAt: { type: Date, default: Date.now },
+    operational: [QuestionAnalysisSchema],
+    tactical: [QuestionAnalysisSchema],
+    strategic: [QuestionAnalysisSchema],
+    summary: Schema.Types.Mixed
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
+
+// Create index for faster queries
+RiskAnalysisSchema.index({ questionnaireId: 1 });
+RiskAnalysisSchema.index({ company: 1, createdAt: -1 });
 
 const RiskAnalysis: Model<IRiskAnalysis> =
   mongoose.models.RiskAnalysis ||
-  mongoose.model<IRiskAnalysis>("RiskAnalysis", RiskAnalysisSchema);
+  mongoose.model<IRiskAnalysis>('RiskAnalysis', RiskAnalysisSchema);
 
 export default RiskAnalysis;
-

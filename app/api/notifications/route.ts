@@ -3,18 +3,7 @@ import dbConnect from "@/lib/mongodb";
 import Questionnaire from "@/models/Questionnaire";
 import RiskAnalysis from "@/models/RiskAnalysis";
 
-// Helper to find answer by possible keys
-interface ResponseItem {
-    question: string;
-    answer: string | number | boolean;
-}
 
-const findAnswer = (responses: ResponseItem[], keys: string[]) => {
-    const response = responses.find((r) =>
-        keys.some((k) => r.question.toLowerCase().includes(k.toLowerCase()))
-    );
-    return response ? response.answer : "Unknown";
-};
 
 export async function GET() {
     try {
@@ -37,15 +26,15 @@ export async function GET() {
 
         // Process Questionnaires
         for (const q of questionnaires) {
-            const company = findAnswer(q.responses, ["company", "organization"]);
-            const person = findAnswer(q.responses, ["name", "full name", "respondent"]);
-            const position = findAnswer(q.responses, ["position", "role", "job title"]);
+            const company = q.company || "Unknown Company";
+            const person = q.filledBy || "Unknown Person";
+            const role = q.role || "Unknown Role";
 
             notifications.push({
                 id: q._id.toString(),
                 type: "questionnaire",
                 title: "New Questionnaire Received",
-                message: `From ${company} by ${person} (${position})`,
+                message: `From ${company} by ${person} (${role})`,
                 date: q.createdAt,
                 read: false, // In a real app, we'd track this
             });
@@ -53,14 +42,14 @@ export async function GET() {
 
         // Process Analyses
         for (const a of analyses) {
-            // @ts-ignore - populated field
-            const qTitle = a.questionnaireId?.title || "Unknown Questionnaire";
+            const company = a.company || "Unknown Company";
+            const category = a.category || "General";
 
             notifications.push({
                 id: a._id.toString(),
                 type: "analysis",
                 title: "Risk Analysis Completed",
-                message: `Analysis done for: ${qTitle}`,
+                message: `Analysis done for: ${company} (${category})`,
                 date: a.createdAt,
                 read: false,
             });

@@ -30,11 +30,14 @@ interface ProcessedAssessment {
 
 interface Questionnaire {
   _id: string;
+  title: string;
   company: string;
-  category: string;
+  filledBy: string;
+  role: string;
   date: string;
   status: string;
   responseCount: number;
+  questions?: any[];
 }
 
 export default function DashboardPage() {
@@ -46,11 +49,13 @@ export default function DashboardPage() {
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
   const [processedAssessments, setProcessedAssessments] = useState<ProcessedAssessment[]>([]);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [viewingQuestionnaire, setViewingQuestionnaire] = useState<Questionnaire | null>(null);
 
   // Filters
   const [companyFilter, setCompanyFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [availableCompanies, setAvailableCompanies] = useState<string[]>([]);
 
   // Risk registration
   const [registeringRisk, setRegisteringRisk] = useState<QuestionAnalysis | null>(null);
@@ -63,9 +68,22 @@ export default function DashboardPage() {
     } else if (status === "authenticated") {
       fetchQuestionnaires();
       fetchProcessedAssessments();
+      fetchCompanies();
       setLoading(false);
     }
   }, [status, router]);
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch("/api/companies/list");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.companies)) {
+        setAvailableCompanies(data.companies);
+      }
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+    }
+  };
 
 
 
@@ -205,11 +223,17 @@ export default function DashboardPage() {
                 <label className="block text-xs text-slate-400 mb-2">Company Name</label>
                 <input
                   type="text"
+                  list="company-list"
                   value={companyFilter}
                   onChange={(e) => setCompanyFilter(e.target.value)}
                   placeholder="Filter by company..."
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
                 />
+                <datalist id="company-list">
+                  {availableCompanies.map((company) => (
+                    <option key={company} value={company} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-2">Category Level</label>
@@ -248,11 +272,19 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   filteredQuestionnaires.map((q) => (
-                    <div key={q._id} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
+                    <div
+                      key={q._id}
+                      className="bg-slate-900 rounded-lg p-4 border border-slate-700 hover:border-blue-500/50 transition cursor-pointer group"
+                      onClick={() => setViewingQuestionnaire(q)}
+                    >
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
-                          <div className="text-white font-medium">{q.company || "Unknown"}</div>
-                          <div className="text-xs text-slate-400">{q.category || "Uncategorized"} • {q.responseCount || 0} responses</div>
+                          <div className="text-white font-medium group-hover:text-blue-400 transition">{q.company || "Unknown"}</div>
+                          <div className="text-sm text-slate-300">{q.title}</div>
+                          <div className="text-xs text-slate-400 mt-1">
+                            Filled by <span className="text-slate-300">{q.filledBy}</span> ({q.role})
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">{q.responseCount || 0} questions</div>
                         </div>
                         <span className={`px-2 py-1 rounded text-xs font-medium ${q.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400' : 'bg-green-600/20 text-green-400'
                           }`}>
@@ -262,7 +294,10 @@ export default function DashboardPage() {
                       <div className="text-xs text-slate-500 mb-3">{q.date ? new Date(q.date).toLocaleDateString() : "No date"}</div>
                       {q.status === 'pending' && (
                         <button
-                          onClick={() => handleTriggerAnalysis(q._id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTriggerAnalysis(q._id);
+                          }}
                           className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition"
                         >
                           🔍 Analyze
@@ -469,6 +504,65 @@ export default function DashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Questionnaire Details Modal */}
+      {viewingQuestionnaire && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-white">{viewingQuestionnaire.company}</h3>
+                <p className="text-slate-400">{viewingQuestionnaire.title}</p>
+                <div className="flex gap-4 mt-2 text-sm text-slate-500">
+                  <span>👤 {viewingQuestionnaire.filledBy} ({viewingQuestionnaire.role})</span>
+                  <span>📅 {new Date(viewingQuestionnaire.date).toLocaleDateString()}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingQuestionnaire(null)}
+                className="text-slate-400 hover:text-white text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-white border-b border-slate-700 pb-2">Responses</h4>
+              {viewingQuestionnaire.questions && viewingQuestionnaire.questions.length > 0 ? (
+                viewingQuestionnaire.questions.map((q: any, idx: number) => (
+                  <div key={idx} className="bg-slate-900 rounded p-4 border border-slate-700">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-xs font-mono text-slate-500">ID: {q.id}</span>
+                      <div className="flex gap-2">
+                        <span className="px-2 py-0.5 bg-slate-800 rounded text-xs text-slate-400">{q.section}</span>
+                        <span className={`px-2 py-0.5 rounded text-xs ${q.level === 'strategic' ? 'bg-purple-900/30 text-purple-400' :
+                          q.level === 'tactical' ? 'bg-blue-900/30 text-blue-400' :
+                            'bg-green-900/30 text-green-400'
+                          }`}>{q.level}</span>
+                      </div>
+                    </div>
+                    <p className="text-white font-medium mb-2">{q.question}</p>
+                    <div className="flex items-start gap-2 text-sm">
+                      <span className="text-slate-400">Answer:</span>
+                      <span className="text-slate-200">{q.answer}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-slate-500 italic">No questions available.</p>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setViewingQuestionnaire(null)}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-medium transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

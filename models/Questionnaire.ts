@@ -1,45 +1,60 @@
-import mongoose, { Document, Model, Schema } from "mongoose";
+// lib/models/Questionnaire.ts
+import mongoose, { Schema, Document, Model } from 'mongoose';
+
+export interface IQuestion {
+  id: number;
+  question: string;
+  answer: string;
+  section: string;
+  level: 'operational' | 'tactical' | 'strategic';
+}
 
 export interface IQuestionnaire extends Document {
   externalId: string;
   title: string;
-  responses: Array<{
-    question: string;
-    answer: string | number | boolean;
-    category?: string;
-  }>;
-  fetchedAt: Date;
-  status: "pending" | "analyzed" | "error";
+  company: string;
+  filledBy: string;
+  role: string;
+  filledDate: Date;
+  status: string;
+  questions: IQuestion[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-const QuestionnaireSchema: Schema<IQuestionnaire> = new Schema(
+const QuestionSchema = new Schema({
+  id: { type: Number, required: true },
+  question: { type: String, required: true },
+  answer: { type: String, required: true },
+  section: { type: String, required: true },
+  level: {
+    type: String,
+    enum: ['operational', 'tactical', 'strategic'],
+    required: true
+  }
+});
+
+const QuestionnaireSchema = new Schema<IQuestionnaire>(
   {
     externalId: { type: String, required: true, unique: true },
     title: { type: String, required: true },
-    responses: [
-      {
-        question: { type: String, required: true },
-        answer: { type: Schema.Types.Mixed, required: true },
-        category: { type: String },
-      },
-    ],
-    fetchedAt: { type: Date, default: Date.now },
-    status: {
-      type: String,
-      enum: ["pending", "analyzed", "error"],
-      default: "pending",
-    },
+    company: { type: String, required: true },
+    filledBy: { type: String, required: true },
+    role: { type: String, required: true },
+    filledDate: { type: Date, required: true },
+    status: { type: String, default: 'pending' },
+    questions: [QuestionSchema]
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
+
+// Force recompilation of model in dev mode to pick up schema changes
+if (process.env.NODE_ENV !== 'production' && mongoose.models.Questionnaire) {
+  delete mongoose.models.Questionnaire;
+}
 
 const Questionnaire: Model<IQuestionnaire> =
   mongoose.models.Questionnaire ||
-  mongoose.model<IQuestionnaire>("Questionnaire", QuestionnaireSchema);
+  mongoose.model<IQuestionnaire>('Questionnaire', QuestionnaireSchema);
 
 export default Questionnaire;
-

@@ -1,137 +1,104 @@
-import { NextRequest, NextResponse } from "next/server";
+// app/api/analysis/process/route.ts
+import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Questionnaire from "@/models/Questionnaire";
 import RiskAnalysis from "@/models/RiskAnalysis";
-import RiskRegister from "@/models/RiskRegister";
-import { analyzeQuestionnaire } from "@/lib/ai";
+import { performRiskAnalysis } from "@/lib/services/riskAnalyzer";
 
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { questionnaireId } = await req.json();
+    const { questionnaireId } = await request.json();
 
     if (!questionnaireId) {
-      return NextResponse.json(
-        { error: "Questionnaire ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        success: false,
+        error: "Questionnaire ID is required"
+      }, { status: 400 });
+    }
+
+    // Check for API key
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({
+        success: false,
+        error: "OPENROUTER_API_KEY not configured"
+      }, { status: 500 });
     }
 
     await dbConnect();
 
+    // Fetch questionnaire
     const questionnaire = await Questionnaire.findById(questionnaireId);
     if (!questionnaire) {
-      return NextResponse.json(
-        { error: "Questionnaire not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        success: false,
+        error: "Questionnaire not found"
+      }, { status: 404 });
     }
 
-    // Check if analysis already exists
+    // Check if already analyzed
     const existingAnalysis = await RiskAnalysis.findOne({ questionnaireId });
     if (existingAnalysis) {
       return NextResponse.json({
-        success: true,
-        analysis: existingAnalysis,
-        message: "Analysis already exists",
-      });
+        success: false,
+        error: "This questionnaire has already been analyzed. View results in the Processed Assessments section."
+      }, { status: 400 });
     }
 
-    // Check if OpenAI API key is configured
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json(
-        { error: "OpenAI API key not configured" },
-        { status: 500 }
-      );
+    console.log(`🔄 Starting analysis for questionnaire: ${questionnaireId}`);
+    console.log(`📋 Total questions: ${questionnaire.questions?.length || 0}`);
+
+    if (!questionnaire.questions || questionnaire.questions.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: "No questions found in this questionnaire"
+      }, { status: 400 });
     }
 
-    // Perform AI analysis
-    const analysisResult = await analyzeQuestionnaire(questionnaire.responses);
+    // Perform risk analysis (this will take time based on question count)
+    const analysisResults = await performRiskAnalysis(
+      questionnaire.questions,
+      apiKey
+    );
 
-    // Save analysis to MongoDB
+    // Save to database
     const riskAnalysis = new RiskAnalysis({
       questionnaireId: questionnaire._id,
-      vulnerabilities: analysisResult.vulnerabilities,
-      riskScore: analysisResult.riskScore,
-      category: analysisResult.category,
-      inherentRisk: analysisResult.inherentRisk,
-      residualRisk: analysisResult.residualRisk,
-      aiInsights: analysisResult.aiInsights,
-      analyzedAt: new Date(),
+      company: questionnaire.company,
+      category: questionnaire.category,
+      metadata: analysisResults.metadata,
+      operational: analysisResults.operational,
+      tactical: analysisResults.tactical,
+      strategic: analysisResults.strategic,
+      summary: analysisResults.summary
     });
 
-    const savedAnalysis = await riskAnalysis.save();
+    await riskAnalysis.save();
 
     // Update questionnaire status
-    questionnaire.status = "analyzed";
+    questionnaire.status = 'analyzed';
     await questionnaire.save();
 
-    // Automatically register risks from vulnerabilities
-    try {
-      const userEmail = (session.user as any)?.email || "system";
-      for (const vulnerability of analysisResult.vulnerabilities) {
-        const riskId = `RISK-${String(savedAnalysis._id)}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-
-        // Check if risk already exists (avoid duplicates)
-        const existingRisk = await RiskRegister.findOne({
-          description: vulnerability.description,
-          category: vulnerability.category,
-        });
-
-        if (!existingRisk) {
-          const riskRegister = new RiskRegister({
-            riskId,
-            description: vulnerability.description,
-            category: vulnerability.category,
-            likelihood: vulnerability.likelihood,
-            impact: vulnerability.impact,
-            status: "open",
-            mitigationStrategy: vulnerability.recommendation,
-            owner: userEmail,
-          });
-          await riskRegister.save();
-        }
-      }
-    } catch (error) {
-      console.error("Error registering risks:", error);
-      // Don't fail the entire request if risk registration fails
-    }
-
-    // Trigger automatic report generation for all levels
-    try {
-      const reportLevels = ["strategic", "tactical", "operational"];
-      for (const level of reportLevels) {
-        await fetch(`${req.nextUrl.origin}/api/reports/generate`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: req.headers.get("cookie") || "",
-          },
-          body: JSON.stringify({
-            analysisId: String(savedAnalysis._id),
-            level,
-          }),
-        });
-      }
-    } catch (error) {
-      console.error("Auto-report generation trigger failed:", error);
-    }
+    console.log(`✅ Analysis completed for questionnaire: ${questionnaireId}`);
 
     return NextResponse.json({
       success: true,
-      analysis: savedAnalysis,
+      message: "Analysis completed successfully",
+      analysisId: riskAnalysis._id.toString(),
+      summary: analysisResults.summary.overall
     });
+
   } catch (error: any) {
-    console.error("Error processing analysis:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to process analysis" },
-      { status: 500 }
-    );
+    console.error("❌ Error processing analysis:", error);
+    return NextResponse.json({
+      success: false,
+      error: error.message || "Failed to process analysis"
+    }, { status: 500 });
   }
 }
-

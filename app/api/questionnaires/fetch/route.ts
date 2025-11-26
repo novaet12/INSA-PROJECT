@@ -37,24 +37,22 @@ export async function POST(req: NextRequest) {
 
     const savedQuestionnaires = [];
 
-    for (const questionnaire of questionnaires) {
-      // Check if questionnaire already exists
+    for (const q of questionnaires) {
+      // Check if questionnaire already exists by external ID
       const existing = await Questionnaire.findOne({
-        externalId: questionnaire.id || questionnaire.externalId || String(questionnaire._id),
+        externalId: q.id
       });
 
       if (!existing) {
         const newQuestionnaire = new Questionnaire({
-          externalId:
-            questionnaire.id || questionnaire.externalId || String(questionnaire._id),
-          title: questionnaire.title || "Untitled Questionnaire",
-          responses:
-            questionnaire.responses ||
-            questionnaire.questions ||
-            questionnaire.data ||
-            [],
-          fetchedAt: new Date(),
+          externalId: q.id,
+          title: q.title,
+          company: q.company_name,
+          filledBy: q.filled_by,
+          role: q.role,
+          filledDate: new Date(q.filled_date),
           status: "pending",
+          questions: q.questions || []
         });
 
         const saved = await newQuestionnaire.save();

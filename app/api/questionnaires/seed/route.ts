@@ -31,31 +31,34 @@ export async function POST(req: NextRequest) {
       fakeData = {
         externalId: `DEV-PHYSICAL-${Date.now()}`,
         title: "Physical Security Assessment - Seed (Test)",
-        responses: [
-          { question: "Are all data center entry points protected by controlled access systems?", answer: "Partially Implemented" },
-          { question: "Is CCTV installed to cover all critical areas and are video recordings retained as per policy?", answer: "Yes" },
-          { question: "Are biometric or smart card authentication systems used for personnel access?", answer: "No" },
-          { question: "Are visitor entries and exits logged, monitored and reviewed regularly?", answer: "Yes" },
-        ],
-        fetchedAt: new Date(),
+        company: "Test Corp - Physical",
+        filledBy: "John Doe",
+        role: "Security Manager",
+        filledDate: new Date(),
         status: "pending",
+        questions: [
+          { id: 1, question: "Are all data center entry points protected by controlled access systems?", answer: "Partially Implemented", section: "Access Control", level: "operational" },
+          { id: 2, question: "Is CCTV installed to cover all critical areas and are video recordings retained as per policy?", answer: "Yes", section: "Surveillance", level: "operational" },
+          { id: 3, question: "Are biometric or smart card authentication systems used for personnel access?", answer: "No", section: "Authentication", level: "tactical" },
+          { id: 4, question: "Are visitor entries and exits logged, monitored and reviewed regularly?", answer: "Yes", section: "Monitoring", level: "operational" },
+        ]
       };
     } else {
       fakeData = {
         externalId: `DEV-SEED-${Date.now()}`,
         title: "Acme Corp - Cybersecurity Assessment (Seeded)",
-        responses: [
-          { question: "Company", answer: "Acme Corp" },
-          { question: "Position", answer: "IT Manager" },
-          { question: "Name", answer: "Jane Doe" },
-          { question: "Do you use multi-factor authentication?", answer: true },
-          { question: "How often do you patch systems?", answer: "Monthly" },
-          { question: "Are backups tested?", answer: false },
-          { question: "Do you have an incident response plan?", answer: "Yes" },
-          { question: "Number of servers", answer: 24 },
-        ],
-        fetchedAt: new Date(),
+        company: "Acme Corp",
+        filledBy: "Jane Doe",
+        role: "IT Director",
+        filledDate: new Date(),
         status: "pending",
+        questions: [
+          { id: 1, question: "Do you use multi-factor authentication?", answer: "Yes", section: "Access Control", level: "operational" },
+          { id: 2, question: "How often do you patch systems?", answer: "Monthly", section: "Vulnerability Management", level: "operational" },
+          { id: 3, question: "Are backups tested?", answer: "No", section: "Data Protection", level: "tactical" },
+          { id: 4, question: "Do you have an incident response plan?", answer: "Yes", section: "Incident Response", level: "strategic" },
+          { id: 5, question: "Number of servers", answer: "24", section: "Asset Management", level: "operational" },
+        ]
       };
     }
 

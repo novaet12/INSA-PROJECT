@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Questionnaire from "@/models/Questionnaire";
 import RiskAnalysis from "@/models/RiskAnalysis";
-import { generateReport } from "@/lib/ai";
+
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,9 +17,9 @@ export async function GET(req: NextRequest) {
     // Find questionnaires related to awareness/assessment
     const awarenessQuestionnaires = await Questionnaire.find({
       $or: [
-        { title: { $regex: /awareness/i } },
-        { title: { $regex: /assessment/i } },
-        { title: { $regex: /training/i } },
+        { category: { $regex: /awareness/i } },
+        { category: { $regex: /assessment/i } },
+        { category: { $regex: /training/i } },
       ],
     }).limit(10);
 
@@ -57,11 +57,28 @@ export async function GET(req: NextRequest) {
     const allVulnerabilities: any[] = [];
 
     analyses.forEach((analysis) => {
-      analysis.vulnerabilities.forEach((vuln) => {
+      const allItems = [
+        ...(analysis.operational || []),
+        ...(analysis.tactical || []),
+        ...(analysis.strategic || [])
+      ];
+
+      allItems.forEach((item: any) => {
+        const riskLevel = item.analysis?.riskLevel || "LOW";
+        const mappedCategory =
+          (riskLevel === "CRITICAL" || riskLevel === "HIGH") ? "High" :
+            (riskLevel === "MEDIUM") ? "Medium" : "Low";
+
+        const vuln = {
+          description: item.analysis?.gap || item.question,
+          category: mappedCategory,
+          recommendation: item.analysis?.mitigation
+        };
+
         allVulnerabilities.push(vuln);
-        if (vuln.category === "High") totalHigh++;
-        if (vuln.category === "Medium") totalMedium++;
-        if (vuln.category === "Low") totalLow++;
+        if (mappedCategory === "High") totalHigh++;
+        if (mappedCategory === "Medium") totalMedium++;
+        if (mappedCategory === "Low") totalLow++;
       });
     });
 
