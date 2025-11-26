@@ -75,8 +75,8 @@ export async function POST(req: NextRequest) {
     try {
       const userEmail = (session.user as any)?.email || "system";
       for (const vulnerability of analysisResult.vulnerabilities) {
-  const riskId = `RISK-${String(savedAnalysis._id)}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-        
+        const riskId = `RISK-${String(savedAnalysis._id)}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+
         // Check if risk already exists (avoid duplicates)
         const existingRisk = await RiskRegister.findOne({
           description: vulnerability.description,

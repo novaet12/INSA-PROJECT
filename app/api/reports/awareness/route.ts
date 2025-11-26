@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     const effectivenessNumber = Number(effectivenessScore);
 
     // Generate awareness report content
-  const reportContent = `HUMAN AWARENESS ASSESSMENT REPORT
+    const reportContent = `HUMAN AWARENESS ASSESSMENT REPORT
 
 Executive Summary:
 This report evaluates cybersecurity awareness capabilities based on ${awarenessQuestionnaires.length} assessment questionnaire(s) and ${analyses.length} analysis(s).
@@ -104,10 +104,10 @@ Recommendations:
 
 Top Awareness Gaps:
 ${allVulnerabilities
-  .filter((v) => v.category === "High")
-  .slice(0, 5)
-  .map((v, i) => `${i + 1}. ${v.description}`)
-  .join("\n")}
+        .filter((v) => v.category === "High")
+        .slice(0, 5)
+        .map((v, i) => `${i + 1}. ${v.description}`)
+        .join("\n")}
 
 Next Steps:
 - Schedule awareness training sessions

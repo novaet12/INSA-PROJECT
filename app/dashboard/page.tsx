@@ -5,15 +5,7 @@ import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
 import RiskMatrix from "@/components/RiskMatrix";
 
-interface DashboardStats {
-  totalRisks: number;
-  highRisks: number;
-  mediumRisks: number;
-  lowRisks: number;
-  totalRegisteredRisks?: number;
-  openRisks?: number;
-  mitigatedRisks?: number;
-}
+
 
 interface QuestionAnalysis {
   question: string;
@@ -48,9 +40,7 @@ interface Questionnaire {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "assessment">("overview");
 
   // Assessment states
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
@@ -71,41 +61,15 @@ export default function DashboardPage() {
     if (status === "unauthenticated") {
       router.push("/login");
     } else if (status === "authenticated") {
-      fetchStats();
+      fetchQuestionnaires();
+      fetchProcessedAssessments();
+      setLoading(false);
     }
   }, [status, router]);
 
-  // Automatically load questionnaires when assessment tab is opened
-  useEffect(() => {
-    if (status === "authenticated" && activeTab === "assessment") {
-      fetchQuestionnaires();
-      fetchProcessedAssessments();
-    }
-  }, [status, activeTab]);
 
-  // ✅ CHANGED: Now uses dedicated /api/risks/stats endpoint
-  const fetchStats = async () => {
-    try {
-      const res = await fetch("/api/risks/stats");
-      const data = await res.json();
-      if (data.success && data.stats) {
-        // Map backend stats to dashboard stats format
-        setStats({
-          totalRisks: data.stats.totalRisks || 0,
-          highRisks: data.stats.high || 0,
-          mediumRisks: data.stats.medium || 0,
-          lowRisks: data.stats.low || 0,
-          totalRegisteredRisks: data.stats.totalRisks || 0,
-          openRisks: data.stats.open || 0,
-          mitigatedRisks: data.stats.mitigated || 0,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
+
 
   const fetchQuestionnaires = async () => {
     try {
@@ -141,7 +105,6 @@ export default function DashboardPage() {
         setMessage({ type: 'success', text: 'Analysis completed' });
         fetchQuestionnaires();
         fetchProcessedAssessments();
-        fetchStats();
       } else {
         setMessage({ type: 'error', text: data.error || 'Analysis failed' });
       }
@@ -191,7 +154,6 @@ export default function DashboardPage() {
       if (data.success) {
         setMessage({ type: 'success', text: 'Risk registered successfully' });
         closeRegisterRiskModal();
-        fetchStats(); // Refresh stats after creating risk
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to register' });
       }
@@ -231,264 +193,209 @@ export default function DashboardPage() {
       <div className="space-y-6">
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>
 
-        {/* Tabs */}
-        <div className="flex space-x-4 border-b border-slate-700">
-          {["overview", "assessment"].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as any)} // eslint-disable-line @typescript-eslint/no-explicit-any
-              className={`px-6 py-3 font-medium transition ${activeTab === tab ? "text-blue-400 border-b-2 border-blue-400" : "text-slate-400 hover:text-slate-300"
-                }`}
-            >
-              {tab === "overview" ? "Overview" : "Risk Assessment"}
-            </button>
-          ))}
-        </div>
 
-        {/* Messages */}
-        {message && (
-          <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-600/20 border border-green-600/50 text-green-400' : 'bg-red-600/20 border border-red-600/50 text-red-400'
-            }`}>
-            {message.text}
+
+
+        <div className="space-y-6">
+          {/* Filters */}
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <h3 className="text-lg font-bold text-white mb-4">🔍 Filter Assessments</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-slate-400 mb-2">Company Name</label>
+                <input
+                  type="text"
+                  value={companyFilter}
+                  onChange={(e) => setCompanyFilter(e.target.value)}
+                  placeholder="Filter by company..."
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-2">Category Level</label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
+                >
+                  <option value="">All Categories</option>
+                  <option value="operational">Operational</option>
+                  <option value="tactical">Tactical</option>
+                  <option value="strategic">Strategic</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-2">Date</label>
+                <input
+                  type="date"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
+                />
+              </div>
+            </div>
           </div>
-        )}
 
-        {/* Overview Tab */}
-        {activeTab === "overview" && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { label: "Total Risks", value: stats?.totalRisks || 0, color: "text-white" },
-                { label: "High Risks", value: stats?.highRisks || 0, color: "text-red-400" },
-                { label: "Medium Risks", value: stats?.mediumRisks || 0, color: "text-yellow-400" },
-                { label: "Low Risks", value: stats?.lowRisks || 0, color: "text-green-400" },
-              ].map((stat, i) => (
-                <div key={i} className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                  <h3 className="text-slate-400 text-sm font-medium mb-2">{stat.label}</h3>
-                  <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                </div>
-              ))}
-            </div>
-
-            {stats?.totalRegisteredRisks !== undefined && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                  { label: "Registered Risks", value: stats.totalRegisteredRisks, color: "text-white" },
-                  { label: "Open Risks", value: stats.openRisks || 0, color: "text-orange-400" },
-                  { label: "Mitigated Risks", value: stats.mitigatedRisks || 0, color: "text-green-400" },
-                ].map((stat, i) => (
-                  <div key={i} className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-                    <h3 className="text-slate-400 text-sm font-medium mb-2">{stat.label}</h3>
-                    <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+          {/* Questionnaires + Matrix */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-slate-800 rounded-lg border border-slate-700 p-6">
+              <h3 className="text-lg font-bold text-white mb-4">📋 Questionnaires</h3>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {filteredQuestionnaires.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400">
+                    <div className="text-4xl mb-2">📭</div>
+                    <p>No questionnaires found</p>
                   </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Assessment Tab */}
-        {activeTab === "assessment" && (
-          <div className="space-y-6">
-            {/* Filters */}
-            <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-              <h3 className="text-lg font-bold text-white mb-4">🔍 Filter Assessments</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-2">Company Name</label>
-                  <input
-                    type="text"
-                    value={companyFilter}
-                    onChange={(e) => setCompanyFilter(e.target.value)}
-                    placeholder="Filter by company..."
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-2">Category Level</label>
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
-                  >
-                    <option value="">All Categories</option>
-                    <option value="operational">Operational</option>
-                    <option value="tactical">Tactical</option>
-                    <option value="strategic">Strategic</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-2">Date</label>
-                  <input
-                    type="date"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
-                  />
-                </div>
+                ) : (
+                  filteredQuestionnaires.map((q) => (
+                    <div key={q._id} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <div className="text-white font-medium">{q.company || "Unknown"}</div>
+                          <div className="text-xs text-slate-400">{q.category || "Uncategorized"} • {q.responseCount || 0} responses</div>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${q.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400' : 'bg-green-600/20 text-green-400'
+                          }`}>
+                          {q.status || "pending"}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-500 mb-3">{q.date ? new Date(q.date).toLocaleDateString() : "No date"}</div>
+                      {q.status === 'pending' && (
+                        <button
+                          onClick={() => handleTriggerAnalysis(q._id)}
+                          className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition"
+                        >
+                          🔍 Analyze
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
-            {/* Questionnaires + Matrix */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-slate-800 rounded-lg border border-slate-700 p-6">
-                <h3 className="text-lg font-bold text-white mb-4">📋 Questionnaires</h3>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {filteredQuestionnaires.length === 0 ? (
-                    <div className="text-center py-8 text-slate-400">
-                      <div className="text-4xl mb-2">📭</div>
-                      <p>No questionnaires found</p>
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+              <h3 className="text-lg font-bold text-white mb-4">📊 Risk Matrix</h3>
+              <RiskMatrix data={null} />
+            </div>
+          </div>
+
+          {/* Processed Assessments */}
+          <div className="space-y-6">
+            <h3 className="text-xl font-bold text-white">✅ Processed Assessments</h3>
+            {filteredAssessments.length === 0 ? (
+              <div className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg p-12 text-center">
+                <div className="text-6xl mb-4 opacity-30">📊</div>
+                <p className="text-white font-semibold mb-2">No processed assessments</p>
+                <p className="text-slate-400">Analyze questionnaires to see results here</p>
+              </div>
+            ) : (
+              filteredAssessments.map((assessment) => (
+                <div key={assessment._id} className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+                  <div className="mb-6">
+                    <h4 className="text-xl font-bold text-white mb-2">🏢 {assessment.company || "Unknown"}</h4>
+                    <div className="flex gap-3 text-sm">
+                      <span className="text-slate-400">📊 {assessment.category || "Uncategorized"}</span>
+                      <span className="text-slate-400">📅 {assessment.date ? new Date(assessment.date).toLocaleDateString() : "No date"}</span>
                     </div>
-                  ) : (
-                    filteredQuestionnaires.map((q) => (
-                      <div key={q._id} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <div className="text-white font-medium">{q.company || "Unknown"}</div>
-                            <div className="text-xs text-slate-400">{q.category || "Uncategorized"} • {q.responseCount || 0} responses</div>
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    {(assessment.analyses || []).map((analysis, idx) => (
+                      <div key={idx} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
+                        <div className="mb-3">
+                          <div className="flex items-start gap-2 mb-2">
+                            <span className="text-lg">❓</span>
+                            <div className="flex-1">
+                              <span className="text-xs font-semibold text-white uppercase tracking-wider">Question:</span>
+                              <p className="text-white mt-1">{analysis.question || "No question"}</p>
+                            </div>
                           </div>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${q.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400' : 'bg-green-600/20 text-green-400'
-                            }`}>
-                            {q.status || "pending"}
-                          </span>
                         </div>
-                        <div className="text-xs text-slate-500 mb-3">{q.date ? new Date(q.date).toLocaleDateString() : "No date"}</div>
-                        {q.status === 'pending' && (
+
+                        <div className="mb-3">
+                          <div className="flex items-start gap-2">
+                            <span className="text-lg">✅</span>
+                            <div className="flex-1">
+                              <span className="text-xs font-semibold text-white uppercase tracking-wider">Answer:</span>
+                              <p className="text-slate-300 mt-1">{analysis.answer || "No answer"}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mb-3 bg-slate-800 rounded p-3">
+                          <div className="flex items-start gap-2 mb-2">
+                            <span className="text-lg">📊</span>
+                            <span className="text-xs font-semibold text-white uppercase tracking-wider">Risk Analysis:</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+                            <div><span className="text-slate-400">Likelihood:</span> <span className="text-white ml-2">{analysis.likelihood || 0}/5</span></div>
+                            <div><span className="text-slate-400">Impact:</span> <span className="text-white ml-2">{analysis.impact || 0}/5</span></div>
+                            <div><span className="text-slate-400">Risk Score:</span> <span className="text-white ml-2">{analysis.riskScore || 0}</span></div>
+                            <div>
+                              <span className="text-slate-400">Level:</span>
+                              <span className={`ml-2 font-bold ${analysis.riskLevel === 'CRITICAL' ? 'text-red-500' :
+                                analysis.riskLevel === 'HIGH' ? 'text-orange-500' :
+                                  analysis.riskLevel === 'MEDIUM' ? 'text-yellow-500' : 'text-green-500'
+                                }`}>{analysis.riskLevel || "UNKNOWN"}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {analysis.gap && (
+                            <div className="flex items-start gap-2">
+                              <span className="text-lg">⚠️</span>
+                              <div className="flex-1">
+                                <span className="text-xs font-semibold text-white uppercase tracking-wider">Gap:</span>
+                                <p className="text-slate-300 mt-1 text-sm">{analysis.gap}</p>
+                              </div>
+                            </div>
+                          )}
+                          {analysis.threat && (
+                            <div className="flex items-start gap-2">
+                              <span className="text-lg">🎯</span>
+                              <div className="flex-1">
+                                <span className="text-xs font-semibold text-white uppercase tracking-wider">Threat:</span>
+                                <p className="text-slate-300 mt-1 text-sm">{analysis.threat}</p>
+                              </div>
+                            </div>
+                          )}
+                          {analysis.mitigation && (
+                            <div className="flex items-start gap-2">
+                              <span className="text-lg">🔧</span>
+                              <div className="flex-1">
+                                <span className="text-xs font-semibold text-white uppercase tracking-wider">Mitigation:</span>
+                                <p className="text-slate-300 mt-1 text-sm">{analysis.mitigation}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-4 pt-4 border-t border-slate-700">
                           <button
-                            onClick={() => handleTriggerAnalysis(q._id)}
-                            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition"
+                            onClick={() => openRegisterRiskModal(analysis, assessment.company)}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition"
                           >
-                            🔍 Analyze
+                            📝 Register This Risk
                           </button>
-                        )}
+                        </div>
                       </div>
-                    ))
+                    ))}
+                  </div>
+
+                  {assessment.riskMatrix && (
+                    <div className="bg-slate-900 rounded-lg p-4 border border-slate-700">
+                      <h5 className="text-sm font-bold text-white mb-3">Risk Matrix for {assessment.company}</h5>
+                      <RiskMatrix data={assessment.riskMatrix} />
+                    </div>
                   )}
                 </div>
-              </div>
-
-              <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                <h3 className="text-lg font-bold text-white mb-4">📊 Risk Matrix</h3>
-                <RiskMatrix data={null} />
-              </div>
-            </div>
-
-            {/* Processed Assessments */}
-            <div className="space-y-6">
-              <h3 className="text-xl font-bold text-white">✅ Processed Assessments</h3>
-              {filteredAssessments.length === 0 ? (
-                <div className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg p-12 text-center">
-                  <div className="text-6xl mb-4 opacity-30">📊</div>
-                  <p className="text-white font-semibold mb-2">No processed assessments</p>
-                  <p className="text-slate-400">Analyze questionnaires to see results here</p>
-                </div>
-              ) : (
-                filteredAssessments.map((assessment) => (
-                  <div key={assessment._id} className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                    <div className="mb-6">
-                      <h4 className="text-xl font-bold text-white mb-2">🏢 {assessment.company || "Unknown"}</h4>
-                      <div className="flex gap-3 text-sm">
-                        <span className="text-slate-400">📊 {assessment.category || "Uncategorized"}</span>
-                        <span className="text-slate-400">📅 {assessment.date ? new Date(assessment.date).toLocaleDateString() : "No date"}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 mb-6">
-                      {(assessment.analyses || []).map((analysis, idx) => (
-                        <div key={idx} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
-                          <div className="mb-3">
-                            <div className="flex items-start gap-2 mb-2">
-                              <span className="text-lg">❓</span>
-                              <div className="flex-1">
-                                <span className="text-xs font-semibold text-white uppercase tracking-wider">Question:</span>
-                                <p className="text-white mt-1">{analysis.question || "No question"}</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mb-3">
-                            <div className="flex items-start gap-2">
-                              <span className="text-lg">✅</span>
-                              <div className="flex-1">
-                                <span className="text-xs font-semibold text-white uppercase tracking-wider">Answer:</span>
-                                <p className="text-slate-300 mt-1">{analysis.answer || "No answer"}</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mb-3 bg-slate-800 rounded p-3">
-                            <div className="flex items-start gap-2 mb-2">
-                              <span className="text-lg">📊</span>
-                              <span className="text-xs font-semibold text-white uppercase tracking-wider">Risk Analysis:</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm mt-2">
-                              <div><span className="text-slate-400">Likelihood:</span> <span className="text-white ml-2">{analysis.likelihood || 0}/5</span></div>
-                              <div><span className="text-slate-400">Impact:</span> <span className="text-white ml-2">{analysis.impact || 0}/5</span></div>
-                              <div><span className="text-slate-400">Risk Score:</span> <span className="text-white ml-2">{analysis.riskScore || 0}</span></div>
-                              <div>
-                                <span className="text-slate-400">Level:</span>
-                                <span className={`ml-2 font-bold ${analysis.riskLevel === 'CRITICAL' ? 'text-red-500' :
-                                  analysis.riskLevel === 'HIGH' ? 'text-orange-500' :
-                                    analysis.riskLevel === 'MEDIUM' ? 'text-yellow-500' : 'text-green-500'
-                                  }`}>{analysis.riskLevel || "UNKNOWN"}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-3">
-                            {analysis.gap && (
-                              <div className="flex items-start gap-2">
-                                <span className="text-lg">⚠️</span>
-                                <div className="flex-1">
-                                  <span className="text-xs font-semibold text-white uppercase tracking-wider">Gap:</span>
-                                  <p className="text-slate-300 mt-1 text-sm">{analysis.gap}</p>
-                                </div>
-                              </div>
-                            )}
-                            {analysis.threat && (
-                              <div className="flex items-start gap-2">
-                                <span className="text-lg">🎯</span>
-                                <div className="flex-1">
-                                  <span className="text-xs font-semibold text-white uppercase tracking-wider">Threat:</span>
-                                  <p className="text-slate-300 mt-1 text-sm">{analysis.threat}</p>
-                                </div>
-                              </div>
-                            )}
-                            {analysis.mitigation && (
-                              <div className="flex items-start gap-2">
-                                <span className="text-lg">🔧</span>
-                                <div className="flex-1">
-                                  <span className="text-xs font-semibold text-white uppercase tracking-wider">Mitigation:</span>
-                                  <p className="text-slate-300 mt-1 text-sm">{analysis.mitigation}</p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="mt-4 pt-4 border-t border-slate-700">
-                            <button
-                              onClick={() => openRegisterRiskModal(analysis, assessment.company)}
-                              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition"
-                            >
-                              📝 Register This Risk
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {assessment.riskMatrix && (
-                      <div className="bg-slate-900 rounded-lg p-4 border border-slate-700">
-                        <h5 className="text-sm font-bold text-white mb-3">Risk Matrix for {assessment.company}</h5>
-                        <RiskMatrix data={assessment.riskMatrix} />
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
+              ))
+            )}
           </div>
-        )}
+        </div>
+
       </div>
 
       {/* Register Risk Modal */}

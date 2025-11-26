@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     analyses.forEach((analysis) => {
       const date = new Date(analysis.createdAt);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      
+
       if (!monthlyData[monthKey]) {
         monthlyData[monthKey] = { high: 0, medium: 0, low: 0, total: 0 };
       }

@@ -46,21 +46,6 @@ export default function RisksPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-    } else if (status === "authenticated") {
-      fetchRegisteredRisks();
-    }
-  }, [status, router, fetchRegisteredRisks]);
-
-  // Re-fetch when filters change
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetchRegisteredRisks();
-    }
-  }, [fetchRegisteredRisks, status]);
-
   // ✅ CHANGED: Now uses query parameters for server-side filtering
   const fetchRegisteredRisks = useCallback(async () => {
     try {
@@ -81,6 +66,21 @@ export default function RisksPage() {
       setLoading(false);
     }
   }, [companyFilter, levelFilter, statusFilter, dateFilter]);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    } else if (status === "authenticated") {
+      fetchRegisteredRisks();
+    }
+  }, [status, router, fetchRegisteredRisks]);
+
+  // Re-fetch when filters change
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetchRegisteredRisks();
+    }
+  }, [fetchRegisteredRisks, status]);
 
   const calculateStats = (): Stats => {
     return {
@@ -254,9 +254,9 @@ export default function RisksPage() {
                 <div
                   key={risk._id}
                   className={`bg-slate-800 rounded-lg border-l-4 p-6 hover:transform hover:-translate-y-1 transition-all ${risk.level === "critical" ? "border-l-red-600" :
-                      risk.level === "high" ? "border-l-orange-500" :
-                        risk.level === "medium" ? "border-l-yellow-500" :
-                          "border-l-green-500"
+                    risk.level === "high" ? "border-l-orange-500" :
+                      risk.level === "medium" ? "border-l-yellow-500" :
+                        "border-l-green-500"
                     }`}
                 >
                   {/* Header */}
