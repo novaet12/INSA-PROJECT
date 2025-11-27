@@ -50,6 +50,13 @@ export default function DashboardPage() {
   const [processedAssessments, setProcessedAssessments] = useState<ProcessedAssessment[]>([]);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [viewingQuestionnaire, setViewingQuestionnaire] = useState<Questionnaire | null>(null);
+  // state for edit modal: stores current item to edit
+  const [viewingEdit, setViewingEdit] = useState<{
+    assessmentId: string;
+    level: string;
+    questionId: number | string;
+    current: any;
+  } | null>(null);
 
   // Filters
   const [companyFilter, setCompanyFilter] = useState("");
@@ -144,7 +151,30 @@ export default function DashboardPage() {
     setRiskFormData({ category: "", status: "open", owner: "" });
   };
 
-  // ✅ CHANGED: Now uses /api/risks/create endpoint with proper structure
+  const closeEditModal = () => setViewingEdit(null);
+
+  const saveEditedAnalysis = async (payload: any) => {
+    try {
+      const res = await fetch('/api/analysis/update-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await res.json();
+      if (d.success) {
+        // refresh processed assessments
+        fetchProcessedAssessments();
+        closeEditModal();
+      } else {
+        alert('Failed to save edits: ' + (d.error || ''));
+      }
+    } catch (err) {
+      console.error('Save edit error', err);
+      alert('Error saving edits');
+    }
+  };
+
+  // CHANGED Now uses /api/risks/create endpoint with proper structure
   const handleRegisterRisk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!registeringRisk) return;
@@ -240,6 +270,8 @@ export default function DashboardPage() {
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
+
+            
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
                 >
                   <option value="">All Categories</option>
@@ -408,12 +440,23 @@ export default function DashboardPage() {
                         </div>
 
                         <div className="mt-4 pt-4 border-t border-slate-700">
-                          <button
-                            onClick={() => openRegisterRiskModal(analysis, assessment.company)}
-                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition"
-                          >
-                            📝 Register This Risk
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => openRegisterRiskModal(analysis, assessment.company)}
+                              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition"
+                            >
+                              📝 Register This Risk
+                            </button>
+                            <button
+                              onClick={() => {
+                                // open inline editor modal
+                                setViewingEdit({ assessmentId: assessment._id, level: analysis.level, questionId: analysis.questionId, current: analysis });
+                              }}
+                              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm font-medium transition"
+                            >
+                              ✏️ Edit
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -562,6 +605,60 @@ export default function DashboardPage() {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Analysis Modal */}
+      {viewingEdit && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 max-w-2xl w-full">
+            <h3 className="text-xl font-bold text-white mb-4">✏️ Edit Analysis</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-slate-400">Likelihood (1-5)</label>
+                <input type="number" min={1} max={5} defaultValue={viewingEdit.current.likelihood} id="edit-likelihood" className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400">Impact (1-5)</label>
+                <input type="number" min={1} max={5} defaultValue={viewingEdit.current.impact} id="edit-impact" className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400">Gap</label>
+                <textarea defaultValue={viewingEdit.current.gap} id="edit-gap" className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400">Threat</label>
+                <textarea defaultValue={viewingEdit.current.threat} id="edit-threat" className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400">Mitigation</label>
+                <textarea defaultValue={viewingEdit.current.mitigation} id="edit-mitigation" className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white" />
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={async () => {
+                  const likelihood = Number((document.getElementById('edit-likelihood') as HTMLInputElement).value || viewingEdit.current.likelihood);
+                  const impact = Number((document.getElementById('edit-impact') as HTMLInputElement).value || viewingEdit.current.impact);
+                  const gap = (document.getElementById('edit-gap') as HTMLTextAreaElement).value;
+                  const threat = (document.getElementById('edit-threat') as HTMLTextAreaElement).value;
+                  const mitigation = (document.getElementById('edit-mitigation') as HTMLTextAreaElement).value;
+
+                  await saveEditedAnalysis({
+                    analysisId: viewingEdit.assessmentId,
+                    level: viewingEdit.level,
+                    questionId: viewingEdit.questionId,
+                    analysis: { likelihood, impact, gap, threat, mitigation }
+                  });
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium"
+              >
+                Save
+              </button>
+              <button onClick={closeEditModal} className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-medium">Cancel</button>
             </div>
           </div>
         </div>

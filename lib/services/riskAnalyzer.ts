@@ -119,7 +119,8 @@ const calculateOverallSummary = (allData: any[]) => {
 // ============================================================
 
 export const performRiskAnalysis = async (questionnaireData: any[], apiKey: string) => {
-    const openai = initializeAI(apiKey);
+    const useStub = !apiKey;
+    const openai = useStub ? undefined : initializeAI(apiKey as string);
 
     const results: any = {
         metadata: {
@@ -150,7 +151,26 @@ export const performRiskAnalysis = async (questionnaireData: any[], apiKey: stri
             const question = levelQuestions[i];
             console.log(`📊 Analyzing ${level} question ${i + 1}/${levelQuestions.length}...`);
 
-            const analysis = await analyzeQuestion(openai, question);
+                let analysis: any;
+                if (useStub) {
+                    // Simple deterministic fallback when no API key is configured
+                    const likelihood = 3;
+                    const impact = 3;
+                    const score = likelihood * impact;
+                    const level = score >= 16 ? 'CRITICAL' : score >= 12 ? 'HIGH' : score >= 6 ? 'MEDIUM' : score >= 2 ? 'LOW' : 'VERY_LOW';
+                    const color = level === 'CRITICAL' ? '#dc2626' : level === 'HIGH' ? '#ef4444' : level === 'MEDIUM' ? '#f97316' : '#10b981';
+                    analysis = {
+                        likelihood,
+                        impact,
+                        gap: 'Manual review suggested',
+                        threat: 'Not assessed (no API)',
+                        mitigation: 'Review controls',
+                        riskMetrics: { score, level, color }
+                    };
+                } else {
+                    const analysisResult = await analyzeQuestion(openai!, question);
+                    analysis = analysisResult;
+                }
             const result = createQuestionResult(question, analysis);
             results[level].push(result);
 

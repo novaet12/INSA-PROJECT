@@ -18,8 +18,11 @@ export async function GET(req: NextRequest) {
     const matrix: { [key: string]: number } = {};
     
     analyses.forEach((analysis) => {
-      analysis.vulnerabilities.forEach((vuln) => {
-        const key = `${vuln.likelihood}-${vuln.impact}`;
+      const all = [ ...(analysis.operational || []), ...(analysis.tactical || []), ...(analysis.strategic || []) ];
+      all.forEach((item: any) => {
+        const likelihood = item.analysis?.likelihood || 0;
+        const impact = item.analysis?.impact || 0;
+        const key = `${likelihood}-${impact}`;
         matrix[key] = (matrix[key] || 0) + 1;
       });
     });
@@ -42,17 +45,22 @@ export async function GET(req: NextRequest) {
     // For this system, we'll use: ALE = Impact Score × Likelihood Score × Asset Value Factor
     // Asset Value Factor is assumed to be $10,000 per risk point
     const assetValueFactor = 10000;
-    const aleData = analyses.flatMap((analysis) =>
-      analysis.vulnerabilities.map((vuln) => ({
-        description: vuln.description,
-        likelihood: vuln.likelihood,
-        impact: vuln.impact,
-        sle: vuln.impact * assetValueFactor, // Single Loss Expectancy
-        aro: vuln.likelihood / 5, // Annualized Rate (normalized 0-1)
-        ale: (vuln.impact * assetValueFactor) * (vuln.likelihood / 5), // Annual Loss Expectancy
-        category: vuln.category,
-      }))
-    );
+    const aleData = analyses.flatMap((analysis) => {
+      const all = [ ...(analysis.operational || []), ...(analysis.tactical || []), ...(analysis.strategic || []) ];
+      return all.map((item: any) => {
+        const likelihood = item.analysis?.likelihood || 0;
+        const impact = item.analysis?.impact || 0;
+        return {
+          description: item.question || '',
+          likelihood,
+          impact,
+          sle: impact * assetValueFactor,
+          aro: likelihood / 5,
+          ale: (impact * assetValueFactor) * (likelihood / 5),
+          category: item.section || 'N/A'
+        };
+      });
+    });
 
     const totalALE = aleData.reduce((sum, item) => sum + item.ale, 0);
 

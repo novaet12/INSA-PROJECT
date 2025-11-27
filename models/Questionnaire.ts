@@ -16,6 +16,7 @@ export interface IQuestionnaire extends Document {
   filledBy: string;
   role: string;
   filledDate: Date;
+  category: string; // Derived from predominant question level
   status: string;
   questions: IQuestion[];
   createdAt: Date;
@@ -42,6 +43,7 @@ const QuestionnaireSchema = new Schema<IQuestionnaire>(
     filledBy: { type: String, required: true },
     role: { type: String, required: true },
     filledDate: { type: Date, required: true },
+    category: { type: String, required: true },
     status: { type: String, default: 'pending' },
     questions: [QuestionSchema]
   },

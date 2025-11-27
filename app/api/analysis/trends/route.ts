@@ -27,10 +27,16 @@ export async function GET(req: NextRequest) {
         monthlyData[monthKey] = { high: 0, medium: 0, low: 0, total: 0 };
       }
 
-      monthlyData[monthKey].total++;
-      if (analysis.category === "High") monthlyData[monthKey].high++;
-      if (analysis.category === "Medium") monthlyData[monthKey].medium++;
-      if (analysis.category === "Low") monthlyData[monthKey].low++;
+      // Use summary.overall.riskDistribution if available
+      const dist = analysis?.summary?.overall?.riskDistribution || { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, VERY_LOW: 0 };
+      const highCount = (dist.CRITICAL || 0) + (dist.HIGH || 0);
+      const mediumCount = dist.MEDIUM || 0;
+      const lowCount = (dist.LOW || 0) + (dist.VERY_LOW || 0);
+
+      monthlyData[monthKey].total += highCount + mediumCount + lowCount;
+      monthlyData[monthKey].high += highCount;
+      monthlyData[monthKey].medium += mediumCount;
+      monthlyData[monthKey].low += lowCount;
     });
 
     // Convert to array format
@@ -42,9 +48,9 @@ export async function GET(req: NextRequest) {
     // Calculate risk score trends
     const riskScoreTrends = analyses.map((analysis) => ({
       date: analysis.createdAt,
-      inherentRisk: analysis.inherentRisk,
-      residualRisk: analysis.residualRisk,
-      riskScore: analysis.riskScore,
+      inherentRisk: analysis?.summary?.overall?.inherentRisk || null,
+      residualRisk: analysis?.summary?.overall?.residualRisk || null,
+      riskScore: analysis?.summary?.overall?.averageRiskScore || null,
     }));
 
     return NextResponse.json({

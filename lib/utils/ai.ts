@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import { OpenRouter } from '@openrouter/sdk';
 
 // ============================================================
 // CONFIGURATION
@@ -50,14 +50,8 @@ const getRiskLevel = (likelihood: number, impact: number) => {
 // ============================================================
 
 export const initializeAI = (apiKey: string) => {
-    return new OpenAI({
-        baseURL: "https://openrouter.ai/api/v1",
-        apiKey: apiKey,
-        defaultHeaders: {
-            "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-            "X-Title": "Risk Analysis Tool",
-        },
-    });
+    // Keep initialization minimal to avoid SDK option type mismatches
+    return new OpenRouter({ apiKey });
 };
 
 const parseAIResponse = (response: string) => {
@@ -88,7 +82,7 @@ const parseAIResponse = (response: string) => {
     return data;
 };
 
-export const analyzeQuestion = async (openai: OpenAI, question: any) => {
+export const analyzeQuestion = async (openRouter: OpenRouter, question: any) => {
     const systemPrompt = `You are a cybersecurity risk analyst. For the given question and answer, provide NUMERIC risk assessment.
 
 Format your response EXACTLY like this (NO OTHER TEXT):
@@ -106,17 +100,29 @@ Control Area: ${question.section}
 Provide ONLY: LIKELIHOOD, IMPACT, GAP, THREAT, MITIGATION`;
 
     try {
-        const completion = await openai.chat.completions.create({
-            model: 'openrouter/sherlock-dash-alpha',
+        const completion = await openRouter.chat.send({
+            model: 'openai/gpt-4o',
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt },
             ],
-            temperature: 0.7,
+            stream: false,
         });
 
-        const response = completion.choices[0].message.content;
-        return parseAIResponse(response || '');
+        // The SDK may return message content as a string or an array/object.
+        const raw = completion?.choices?.[0]?.message?.content;
+        let responseText = '';
+        if (!raw) responseText = '';
+        else if (typeof raw === 'string') responseText = raw;
+        else if (Array.isArray(raw)) {
+            responseText = raw.map((r: any) => (typeof r === 'string' ? r : r.text || '')).join('\n');
+        } else if (typeof raw === 'object') {
+            responseText = (raw.text || JSON.stringify(raw));
+        } else {
+            responseText = String(raw);
+        }
+
+        return parseAIResponse(responseText || '');
     } catch (error) {
         console.error('AI Analysis Error:', error);
         return {

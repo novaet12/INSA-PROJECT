@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
         filledBy: "John Doe",
         role: "Security Manager",
         filledDate: new Date(),
+        category: "operational", // Most questions are operational
         status: "pending",
         questions: [
           { id: 1, question: "Are all data center entry points protected by controlled access systems?", answer: "Partially Implemented", section: "Access Control", level: "operational" },
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
         filledBy: "Jane Doe",
         role: "IT Director",
         filledDate: new Date(),
+        category: "operational", // Most questions are operational
         status: "pending",
         questions: [
           { id: 1, question: "Do you use multi-factor authentication?", answer: "Yes", section: "Access Control", level: "operational" },

@@ -44,6 +44,15 @@ export async function POST(req: NextRequest) {
       });
 
       if (!existing) {
+        // Determine category based on which level has the most questions
+        const questions = q.questions || [];
+        const levelCounts = {
+          operational: questions.filter((question: any) => question.level === 'operational').length,
+          tactical: questions.filter((question: any) => question.level === 'tactical').length,
+          strategic: questions.filter((question: any) => question.level === 'strategic').length
+        };
+        const category = Object.entries(levelCounts).reduce((a, b) => a[1] > b[1] ? a : b)[0];
+
         const newQuestionnaire = new Questionnaire({
           externalId: q.id,
           title: q.title,
@@ -51,8 +60,9 @@ export async function POST(req: NextRequest) {
           filledBy: q.filled_by,
           role: q.role,
           filledDate: new Date(q.filled_date),
+          category: category,
           status: "pending",
-          questions: q.questions || []
+          questions: questions
         });
 
         const saved = await newQuestionnaire.save();
