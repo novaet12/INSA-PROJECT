@@ -50,6 +50,8 @@ export default function DashboardPage() {
   const [processedAssessments, setProcessedAssessments] = useState<ProcessedAssessment[]>([]);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [viewingQuestionnaire, setViewingQuestionnaire] = useState<Questionnaire | null>(null);
+  const [viewingAssessment, setViewingAssessment] = useState<ProcessedAssessment | null>(null);
+  const [selectedMatrixData, setSelectedMatrixData] = useState<ProcessedAssessment['riskMatrix'] | null>(null);
   // state for edit modal: stores current item to edit
   const [viewingEdit, setViewingEdit] = useState<{
     assessmentId: string;
@@ -117,6 +119,12 @@ export default function DashboardPage() {
       setProcessedAssessments([]);
     }
   };
+
+  const openAssessmentModal = (assessment: ProcessedAssessment) => {
+    setViewingAssessment(assessment);
+  };
+
+  const closeAssessmentModal = () => setViewingAssessment(null);
 
   const handleTriggerAnalysis = async (questionnaireId: string) => {
     try {
@@ -342,134 +350,68 @@ export default function DashboardPage() {
             </div>
 
             <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-              <h3 className="text-lg font-bold text-white mb-4">📊 Risk Matrix</h3>
-              <RiskMatrix data={null} />
+              <h3 className="text-lg font-bold text-white mb-4">Risk Matrix</h3>
+              <RiskMatrix data={selectedMatrixData ?? (filteredAssessments[0]?.riskMatrix ?? null)} />
+
+              <div className="mt-4">
+                <h4 className="text-sm text-slate-300 mb-2">Recent Assessments</h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {(filteredAssessments || []).slice(0, 6).map((a) => (
+                    <div key={a._id} className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700">
+                      <div className="text-sm">
+                        <div className="text-white font-medium">{a.company || 'Unknown'}</div>
+                        <div className="text-xs text-slate-400">{a.date ? new Date(a.date).toLocaleDateString() : ''} • {a.analyses.length} q</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setSelectedMatrixData(a.riskMatrix)} className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs">Show Matrix</button>
+                        <button onClick={() => openAssessmentModal(a)} className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">Details</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Processed Assessments */}
+          {/* Processed Assessments (grouped by analysis run) */}
           <div className="space-y-6">
-            <h3 className="text-xl font-bold text-white">✅ Processed Assessments</h3>
+            <h3 className="text-xl font-bold text-white">Processed Assessments</h3>
             {filteredAssessments.length === 0 ? (
               <div className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg p-12 text-center">
-                <div className="text-6xl mb-4 opacity-30">📊</div>
+                <div className="text-6xl mb-4 opacity-30"> </div>
                 <p className="text-white font-semibold mb-2">No processed assessments</p>
                 <p className="text-slate-400">Analyze questionnaires to see results here</p>
               </div>
             ) : (
-              filteredAssessments.map((assessment) => (
-                <div key={assessment._id} className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                  <div className="mb-6">
-                    <h4 className="text-xl font-bold text-white mb-2">🏢 {assessment.company || "Unknown"}</h4>
-                    <div className="flex gap-3 text-sm">
-                      <span className="text-slate-400">📊 {assessment.category || "Uncategorized"}</span>
-                      <span className="text-slate-400">📅 {assessment.date ? new Date(assessment.date).toLocaleDateString() : "No date"}</span>
+              <div className="space-y-4">
+                {filteredAssessments.map((assessment) => (
+                  <div key={assessment._id} className="bg-slate-800 rounded-lg border border-slate-700 p-4 flex items-center justify-between">
+                    <div>
+                      <div className="text-lg font-bold text-white">{assessment.company || "Unknown"}</div>
+                      <div className="text-sm text-slate-400">{assessment.category || "Uncategorized"} • {assessment.date ? new Date(assessment.date).toLocaleDateString() : "No date"}</div>
+                      <div className="text-sm text-slate-400 mt-1">Questions: <span className="text-white font-medium">{(assessment.analyses || []).length}</span></div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => openAssessmentModal(assessment)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium"
+                      >
+                        View Details
+                      </button>
+                      <button
+                        onClick={() => {
+                          // quick refresh or other action
+                          fetchProcessedAssessments();
+                        }}
+                        className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm"
+                      >
+                        Refresh
+                      </button>
                     </div>
                   </div>
-
-                  <div className="space-y-4 mb-6">
-                    {(assessment.analyses || []).map((analysis, idx) => (
-                      <div key={idx} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
-                        <div className="mb-3">
-                          <div className="flex items-start gap-2 mb-2">
-                            <span className="text-lg">❓</span>
-                            <div className="flex-1">
-                              <span className="text-xs font-semibold text-white uppercase tracking-wider">Question:</span>
-                              <p className="text-white mt-1">{analysis.question || "No question"}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mb-3">
-                          <div className="flex items-start gap-2">
-                            <span className="text-lg">✅</span>
-                            <div className="flex-1">
-                              <span className="text-xs font-semibold text-white uppercase tracking-wider">Answer:</span>
-                              <p className="text-slate-300 mt-1">{analysis.answer || "No answer"}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mb-3 bg-slate-800 rounded p-3">
-                          <div className="flex items-start gap-2 mb-2">
-                            <span className="text-lg">📊</span>
-                            <span className="text-xs font-semibold text-white uppercase tracking-wider">Risk Analysis:</span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm mt-2">
-                            <div><span className="text-slate-400">Likelihood:</span> <span className="text-white ml-2">{analysis.likelihood || 0}/5</span></div>
-                            <div><span className="text-slate-400">Impact:</span> <span className="text-white ml-2">{analysis.impact || 0}/5</span></div>
-                            <div><span className="text-slate-400">Risk Score:</span> <span className="text-white ml-2">{analysis.riskScore || 0}</span></div>
-                            <div>
-                              <span className="text-slate-400">Level:</span>
-                              <span className={`ml-2 font-bold ${analysis.riskLevel === 'CRITICAL' ? 'text-red-500' :
-                                analysis.riskLevel === 'HIGH' ? 'text-orange-500' :
-                                  analysis.riskLevel === 'MEDIUM' ? 'text-yellow-500' : 'text-green-500'
-                                }`}>{analysis.riskLevel || "UNKNOWN"}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          {analysis.gap && (
-                            <div className="flex items-start gap-2">
-                              <span className="text-lg">⚠️</span>
-                              <div className="flex-1">
-                                <span className="text-xs font-semibold text-white uppercase tracking-wider">Gap:</span>
-                                <p className="text-slate-300 mt-1 text-sm">{analysis.gap}</p>
-                              </div>
-                            </div>
-                          )}
-                          {analysis.threat && (
-                            <div className="flex items-start gap-2">
-                              <span className="text-lg">🎯</span>
-                              <div className="flex-1">
-                                <span className="text-xs font-semibold text-white uppercase tracking-wider">Threat:</span>
-                                <p className="text-slate-300 mt-1 text-sm">{analysis.threat}</p>
-                              </div>
-                            </div>
-                          )}
-                          {analysis.mitigation && (
-                            <div className="flex items-start gap-2">
-                              <span className="text-lg">🔧</span>
-                              <div className="flex-1">
-                                <span className="text-xs font-semibold text-white uppercase tracking-wider">Mitigation:</span>
-                                <p className="text-slate-300 mt-1 text-sm">{analysis.mitigation}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="mt-4 pt-4 border-t border-slate-700">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => openRegisterRiskModal(analysis, assessment.company)}
-                              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition"
-                            >
-                              📝 Register This Risk
-                            </button>
-                            <button
-                              onClick={() => {
-                                // open inline editor modal
-                                setViewingEdit({ assessmentId: assessment._id, level: analysis.level, questionId: analysis.questionId, current: analysis });
-                              }}
-                              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm font-medium transition"
-                            >
-                              ✏️ Edit
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {assessment.riskMatrix && (
-                    <div className="bg-slate-900 rounded-lg p-4 border border-slate-700">
-                      <h5 className="text-sm font-bold text-white mb-3">Risk Matrix for {assessment.company}</h5>
-                      <RiskMatrix data={assessment.riskMatrix} />
-                    </div>
-                  )}
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -605,6 +547,85 @@ export default function DashboardPage() {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Assessment Details Modal (group run) */}
+      {viewingAssessment && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-2xl font-bold text-white">{viewingAssessment.company}</h3>
+                <p className="text-slate-400">{viewingAssessment.category}</p>
+                <div className="text-sm text-slate-500 mt-1">{viewingAssessment.date ? new Date(viewingAssessment.date).toLocaleString() : ''}</div>
+                <div className="text-sm text-slate-400 mt-2">Questions: {(viewingAssessment.analyses || []).length}</div>
+              </div>
+              <button onClick={closeAssessmentModal} className="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+
+            <div className="space-y-4">
+              {(viewingAssessment.analyses || []).map((a, idx) => (
+                <div key={idx} className="bg-slate-900 rounded p-4 border border-slate-700">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="text-sm text-slate-400">Question</div>
+                      <div className="text-white font-medium">{a.question}</div>
+                      <div className="text-sm text-slate-400 mt-2">Answer</div>
+                      <div className="text-slate-300">{a.answer}</div>
+                    </div>
+                    <div className="ml-4 text-right">
+                      <div className="text-sm text-slate-400">Likelihood</div>
+                      <div className="text-white font-bold">{(a.likelihood ?? a.analysis?.likelihood) || 0}/5</div>
+                      <div className="text-sm text-slate-400 mt-2">Impact</div>
+                      <div className="text-white font-bold">{(a.impact ?? a.analysis?.impact) || 0}/5</div>
+                      <div className="text-sm text-slate-400 mt-2">Level</div>
+                      <div className="text-white font-medium">{a.riskLevel || a.analysis?.riskLevel || 'UNKNOWN'}</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    {((a.gap ?? a.analysis?.gap) || '') !== '' && (
+                      <div>
+                        <div className="text-xs text-slate-400">Gap</div>
+                        <div className="text-slate-300">{a.gap ?? a.analysis?.gap}</div>
+                      </div>
+                    )}
+                    {((a.threat ?? a.analysis?.threat) || '') !== '' && (
+                      <div>
+                        <div className="text-xs text-slate-400">Threat</div>
+                        <div className="text-slate-300">{a.threat ?? a.analysis?.threat}</div>
+                      </div>
+                    )}
+                    {((a.mitigation ?? a.analysis?.mitigation) || '') !== '' && (
+                      <div>
+                        <div className="text-xs text-slate-400">Mitigation</div>
+                        <div className="text-slate-300">{a.mitigation ?? a.analysis?.mitigation}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => openRegisterRiskModal(a as any, viewingAssessment.company)}
+                      className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
+                    >
+                      Register Risk
+                    </button>
+                    <button
+                      onClick={() => setViewingEdit({ assessmentId: viewingAssessment._id, level: a.level, questionId: a.questionId, current: a })}
+                      className="px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button onClick={closeAssessmentModal} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded">Close</button>
             </div>
           </div>
         </div>
