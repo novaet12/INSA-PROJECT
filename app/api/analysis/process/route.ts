@@ -1,6 +1,5 @@
 // app/api/analysis/process/route.ts
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Questionnaire from "@/models/Questionnaire";
 import RiskAnalysis from "@/models/RiskAnalysis";
@@ -55,6 +54,26 @@ export async function POST(request: Request) {
     console.log(`🔄 Starting analysis for questionnaire: ${questionnaireId}`);
     console.log(`📋 Total questions: ${questionnaire.questions?.length || 0}`);
 
+    // Ensure questionnaire has a category — infer from questions if missing
+    const inferCategoryFromQuestions = (questions: { level?: string }[] | undefined): 'operational' | 'tactical' | 'strategic' => {
+      if (!questions || questions.length === 0) return 'operational';
+      const counts: Record<'operational'|'tactical'|'strategic', number> = { operational: 0, tactical: 0, strategic: 0 };
+      for (const q of questions) {
+        const lvl = q?.level ? String(q.level).toLowerCase() : '';
+        if (lvl === 'operational' || lvl === 'tactical' || lvl === 'strategic') {
+          counts[lvl as 'operational'|'tactical'|'strategic']++;
+        }
+      }
+      // pick the max count; default to operational on tie/zero
+      const sorted = (Object.entries(counts) as [string, number][]).sort((a, b) => b[1] - a[1]);
+      return (sorted[0] && (sorted[0][0] as 'operational'|'tactical'|'strategic')) || 'operational';
+    };
+
+    const categoryToUse = questionnaire.category || inferCategoryFromQuestions(questionnaire.questions);
+    if (!questionnaire.category) {
+      questionnaire.category = categoryToUse;
+    }
+
     if (!questionnaire.questions || questionnaire.questions.length === 0) {
       return NextResponse.json({
         success: false,
@@ -68,11 +87,11 @@ export async function POST(request: Request) {
       apiKey
     );
 
-    // Save to database
+    // Save to database (ensure category is set)
     const riskAnalysis = new RiskAnalysis({
       questionnaireId: questionnaire._id,
       company: questionnaire.company,
-      category: questionnaire.category,
+      category: categoryToUse,
       metadata: analysisResults.metadata,
       operational: analysisResults.operational,
       tactical: analysisResults.tactical,
@@ -82,9 +101,9 @@ export async function POST(request: Request) {
 
     await riskAnalysis.save();
 
-    // Update questionnaire status
-    questionnaire.status = 'analyzed';
-    await questionnaire.save();
+  // Update questionnaire status and save any inferred category
+  questionnaire.status = 'analyzed';
+  await questionnaire.save();
 
     console.log(`✅ Analysis completed for questionnaire: ${questionnaireId}`);
 
@@ -95,11 +114,12 @@ export async function POST(request: Request) {
       summary: analysisResults.summary.overall
     });
 
-  } catch (error: any) {
-    console.error("❌ Error processing analysis:", error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("❌ Error processing analysis:", errMsg);
     return NextResponse.json({
       success: false,
-      error: error.message || "Failed to process analysis"
+      error: errMsg || "Failed to process analysis"
     }, { status: 500 });
   }
 }

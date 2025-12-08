@@ -22,9 +22,14 @@ export async function POST(req: NextRequest) {
 
     await dbConnect();
 
-    const variant = searchParams.get("variant") || "default";
+  const variant = searchParams.get("variant") || "default";
+  // optional flag to randomize the category for seeded questionnaires
+  const randomFlag = (searchParams.get("random") === "true") || (searchParams.get("randomCategory") === "true");
 
-    let fakeData: any;
+  const categories = ["operational", "tactical", "strategic"] as const;
+  const pickRandomCategory = () => categories[Math.floor(Math.random() * categories.length)];
+
+  let fakeData: any;
 
     if (variant === "physical") {
       // Physical data center security questionnaire (from user request)
@@ -35,7 +40,7 @@ export async function POST(req: NextRequest) {
         filledBy: "John Doe",
         role: "Security Manager",
         filledDate: new Date(),
-        category: "operational", // Most questions are operational
+        category: searchParams.get("category") || (randomFlag ? pickRandomCategory() : "operational"),
         status: "pending",
         questions: [
           { id: 1, question: "Are all data center entry points protected by controlled access systems?", answer: "Partially Implemented", section: "Access Control", level: "operational" },
@@ -52,7 +57,7 @@ export async function POST(req: NextRequest) {
         filledBy: "Jane Doe",
         role: "IT Director",
         filledDate: new Date(),
-        category: "operational", // Most questions are operational
+        category: searchParams.get("category") || (randomFlag ? pickRandomCategory() : "operational"),
         status: "pending",
         questions: [
           { id: 1, question: "Do you use multi-factor authentication?", answer: "Yes", section: "Access Control", level: "operational" },

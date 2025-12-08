@@ -41,9 +41,9 @@ const createQuestionResult = (question: any, analysis: any) => {
         analysis: {
             likelihood: analysis.likelihood,
             impact: analysis.impact,
-            riskScore: analysis.riskMetrics.score,
-            riskLevel: analysis.riskMetrics.level,
-            riskColor: analysis.riskMetrics.color,
+            riskScore: analysis.riskScore,
+            riskLevel: analysis.riskLevel,
+            riskColor: analysis.riskColor,
             gap: analysis.gap,
             threat: analysis.threat,
             mitigation: analysis.mitigation
@@ -153,19 +153,49 @@ export const performRiskAnalysis = async (questionnaireData: any[], apiKey: stri
 
                 let analysis: any;
                 if (useStub) {
-                    // Simple deterministic fallback when no API key is configured
-                    const likelihood = 3;
-                    const impact = 3;
+                    // Simple but smarter fallback when no API key is configured.
+                    // Previously this returned identical scores (3/5) for every question;
+                    // that happens when the AI key is missing. Improve the stub so results
+                    // vary based on the question's level and answer text.
+                    const ans = String(question.answer || '').toLowerCase();
+                    const qtext = String(question.question || '').toLowerCase();
+                    const lvl = String(question.level || 'operational').toLowerCase();
+
+                    // Likelihood heuristic: 'no' / 'never' / 'partial' -> higher likelihood
+                    let likelihood = 3;
+                    if (ans.match(/\b(no|not|none|never|don't|dont|partial|partially)\b/)) likelihood = 4;
+                    else if (ans.match(/\b(yes|always|every)\b/)) likelihood = 2;
+                    else if (qtext.match(/vulnerab|vuln|risk|threat/)) likelihood = 4;
+
+                    // Impact heuristic: strategic > tactical > operational
+                    let impact = lvl === 'strategic' ? 4 : lvl === 'tactical' ? 3 : 2;
+                    // Numeric answers (e.g., number of servers) increase impact if large
+                    const num = parseFloat(ans.replace(/[^0-9.\-]/g, ''));
+                    if (!isNaN(num)) {
+                      if (num > 100) impact = Math.max(impact, 5);
+                      else if (num > 50) impact = Math.max(impact, 4);
+                      else if (num > 10) impact = Math.max(impact, 3);
+                    }
+
+                    // Add a tiny random jitter so dev runs won't be identical every time
+                    const jitter = Math.random() < 0.2 ? 1 : 0;
+                    likelihood = Math.min(5, Math.max(1, likelihood + jitter));
+                    impact = Math.min(5, Math.max(1, impact));
+
                     const score = likelihood * impact;
-                    const level = score >= 16 ? 'CRITICAL' : score >= 12 ? 'HIGH' : score >= 6 ? 'MEDIUM' : score >= 2 ? 'LOW' : 'VERY_LOW';
-                    const color = level === 'CRITICAL' ? '#dc2626' : level === 'HIGH' ? '#ef4444' : level === 'MEDIUM' ? '#f97316' : '#10b981';
+                    const riskLevel = score >= 16 ? 'CRITICAL' : score >= 12 ? 'HIGH' : score >= 6 ? 'MEDIUM' : score >= 2 ? 'LOW' : 'VERY_LOW';
+                    const riskColor = riskLevel === 'CRITICAL' ? '#dc2626' : riskLevel === 'HIGH' ? '#ef4444' : riskLevel === 'MEDIUM' ? '#f97316' : '#10b981';
+
                     analysis = {
                         likelihood,
                         impact,
                         gap: 'Manual review suggested',
                         threat: 'Not assessed (no API)',
                         mitigation: 'Review controls',
-                        riskMetrics: { score, level, color }
+                        // top-level fields expected by createQuestionResult
+                        riskScore: score,
+                        riskLevel,
+                        riskColor
                     };
                 } else {
                     const analysisResult = await analyzeQuestion(openai!, question);
