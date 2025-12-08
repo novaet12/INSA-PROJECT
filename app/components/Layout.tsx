@@ -14,6 +14,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigation = [
     { name: "Dashboard", href: "/dashboard" },
     { name: "Risk Register", href: "/risks" },
+    { name: "Questionnaires", href: "/questionnaires" },
     { name: "Reports", href: "/reports" },
   ];
 
@@ -49,6 +50,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               })}
             </ul>
           </nav>
+
+          {/* quick actions / space reserved (Questionnaires panel removed; use the full page) */}
 
           {/* Bottom area: Notifications & Sign Out */}
           <div className="p-4 border-t border-slate-700 space-y-2 relative">
