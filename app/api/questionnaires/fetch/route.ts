@@ -67,20 +67,6 @@ export async function POST(req: NextRequest) {
 
         const saved = await newQuestionnaire.save();
         savedQuestionnaires.push(saved);
-
-        // Trigger automatic analysis
-        try {
-          await fetch(`${req.nextUrl.origin}/api/analysis/process`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Cookie: req.headers.get("cookie") || "",
-            },
-            body: JSON.stringify({ questionnaireId: String(saved._id) }),
-          });
-        } catch (error) {
-          console.error("Auto-analysis trigger failed:", error);
-        }
       } else {
         savedQuestionnaires.push(existing);
       }

@@ -81,11 +81,24 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
+    // Acquire analysis lock to avoid duplicate/race analyses
+    const { acquireAnalysisLock, releaseAnalysisLock } = await import('@/lib/services/analysisLock');
+    const lock = await acquireAnalysisLock(String(questionnaire._id));
+    if (!lock || !lock.acquired) {
+      return NextResponse.json({ success: false, error: 'Analysis already in progress for this questionnaire' }, { status: 409 });
+    }
+
     // Perform risk analysis (this will take time based on question count)
-    const analysisResults = await performRiskAnalysis(
-      questionnaire.questions,
-      apiKey
-    );
+    let analysisResults: any;
+    try {
+      analysisResults = await performRiskAnalysis(
+        questionnaire.questions,
+        apiKey
+      );
+    } finally {
+      // release lock in finally to ensure it's removed even on error
+      try { await import('@/lib/services/analysisLock').then(m => m.releaseAnalysisLock(String(questionnaire._id))); } catch (e) { }
+    }
 
     // Save to database (ensure category is set)
     const riskAnalysis = new RiskAnalysis({

@@ -13,6 +13,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard" },
+    { name: "Risk Matrix", href: "/risk-matrix" },
     { name: "Risk Register", href: "/risks" },
     { name: "Questionnaires", href: "/questionnaires" },
     { name: "Reports", href: "/reports" },

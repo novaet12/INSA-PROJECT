@@ -71,26 +71,7 @@ export async function POST(req: NextRequest) {
 
     const fake = new Questionnaire(fakeData);
 
-    const saved = await fake.save();
-
-    // Trigger automatic analysis for the seeded questionnaire (best-effort)
-    try {
-      const maybeId = saved._id as unknown;
-      const questionnaireId = maybeId && typeof (maybeId as { toString?: () => string }).toString === "function"
-        ? (maybeId as { toString: () => string }).toString()
-        : String(maybeId);
-      // Fire-and-forget POST to the analysis process endpoint with cookies forwarded if present
-      await fetch(`${req.nextUrl.origin}/api/analysis/process`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Cookie: req.headers.get("cookie") || "",
-        },
-        body: JSON.stringify({ questionnaireId }),
-      }).catch((e) => console.error("Auto-analysis trigger failed:", e));
-    } catch (errTrigger) {
-      console.error("Auto-analysis error:", errTrigger);
-    }
+  const saved = await fake.save();
 
     return NextResponse.json({ success: true, questionnaire: saved });
   } catch (err) {
