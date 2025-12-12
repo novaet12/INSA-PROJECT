@@ -564,12 +564,12 @@ export default function DashboardPage() {
                         <div className="text-slate-300">{a.impactLabel ?? a.analysis?.impactLabel}</div>
                       </div>
                     )}
-                    {((a.impactDescription ?? a.analysis?.impactDescription) || '') !== '' && (
-                      <div>
-                        <div className="text-xs text-slate-400">Impact</div>
-                        <div className="text-slate-300">{a.impactDescription ?? a.analysis?.impactDescription}</div>
+                    <div>
+                      <div className="text-xs text-slate-400">Impact Description</div>
+                      <div className="text-slate-300">
+                        {(a.impactDescription ?? a.analysis?.impactDescription) || 'Not available - re-analyze to generate'}
                       </div>
-                    )}
+                    </div>
                   </div>
 
                   <div className="mt-4 flex gap-2">

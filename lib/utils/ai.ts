@@ -199,12 +199,12 @@ const parseAIResponse = (response: string): Partial<RiskAnalysisResult> => {
 
     if (lowerLine.includes('likelihood:')) {
       const match = line.match(/LIKELIHOOD:\s*(\d)/i);
-      data.likelihood = match ? Math.min(5, Math.max(1, parseInt(match))) : 3;
+      data.likelihood = match ? Math.min(5, Math.max(1, parseInt(match[1]))) : 3;
     }
 
     if (lowerLine.includes('impact:')) {
       const match = line.match(/IMPACT:\s*(\d)/i);
-      data.impact = match ? Math.min(5, Math.max(1, parseInt(match))) : 3;
+      data.impact = match ? Math.min(5, Math.max(1, parseInt(match[1]))) : 3;
     }
 
     if (lowerLine.includes('gap:')) {
@@ -221,7 +221,18 @@ const parseAIResponse = (response: string): Partial<RiskAnalysisResult> => {
 
     if (lowerLine.includes('impact_description:') || lowerLine.includes('impact description:')) {
       data.impactDescription = line.replace(/IMPACT[_\s]DESCRIPTION:/i, '').trim();
+      console.log('[AI Parser] Found impact description:', data.impactDescription);
     }
+  });
+
+  console.log('[AI Parser] Final parsed data:', {
+    likelihood: data.likelihood,
+    impact: data.impact,
+    hasGap: !!data.gap,
+    hasThreat: !!data.threat,
+    hasMitigation: !!data.mitigation,
+    hasImpactDescription: !!data.impactDescription,
+    impactDescription: data.impactDescription
   });
 
   // Calculate risk metrics
