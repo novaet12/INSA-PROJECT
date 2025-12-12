@@ -17,6 +17,8 @@ interface QuestionAnalysis {
   gap: string;
   threat: string;
   mitigation: string;
+  impactLabel?: string;
+  impactDescription?: string;
 }
 
 interface ProcessedAssessment {
@@ -63,6 +65,7 @@ export default function DashboardPage() {
   const [registeringRisk, setRegisteringRisk] = useState<QuestionAnalysis | null>(null);
   const [selectedCompany, setSelectedCompany] = useState("");
   const [riskFormData, setRiskFormData] = useState({ category: "", status: "open", owner: "" });
+  const [reanalyzing, setReanalyzing] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -273,6 +276,33 @@ export default function DashboardPage() {
     } catch (error) {
       console.error(error);
       setMessage({ type: 'error', text: 'Error registering risks' });
+    }
+  };
+
+  const handleReanalyze = async (assessmentId: string) => {
+    if (!confirm('Re-analyze this assessment? This will replace the existing analysis with fresh AI results.')) return;
+
+    setReanalyzing(true);
+    try {
+      const res = await fetch('/api/analysis/reanalyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ analysisId: assessmentId })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Re-analysis completed successfully' });
+        fetchProcessedAssessments();
+        closeAssessmentModal();
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Re-analysis failed' });
+      }
+    } catch (error) {
+      console.error(error);
+      setMessage({ type: 'error', text: 'Error during re-analysis' });
+    } finally {
+      setReanalyzing(false);
     }
   };
 
@@ -528,6 +558,18 @@ export default function DashboardPage() {
                         <div className="text-slate-300">{a.mitigation ?? a.analysis?.mitigation}</div>
                       </div>
                     )}
+                    {((a.impactLabel ?? a.analysis?.impactLabel) || '') !== '' && (
+                      <div>
+                        <div className="text-xs text-slate-400">Impact Level</div>
+                        <div className="text-slate-300">{a.impactLabel ?? a.analysis?.impactLabel}</div>
+                      </div>
+                    )}
+                    {((a.impactDescription ?? a.analysis?.impactDescription) || '') !== '' && (
+                      <div>
+                        <div className="text-xs text-slate-400">Impact</div>
+                        <div className="text-slate-300">{a.impactDescription ?? a.analysis?.impactDescription}</div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-4 flex gap-2">
@@ -543,24 +585,30 @@ export default function DashboardPage() {
             </div>
 
             <div className="mt-6 flex justify-between items-center">
-              <button
-                onClick={() => {
-                  // Register all risks from this questionnaire
-                  const allAnalyses = viewingAssessment.analyses || [];
-                  if (allAnalyses.length === 0) {
-                    alert('No questions to register as risks');
-                    return;
-                  }
-                  // For now, we'll open a modal to register all at once
-                  // You could also batch register them
-                  if (confirm(`Register all ${allAnalyses.length} questions as risks?`)) {
-                    registerAllRisks(allAnalyses, viewingAssessment.company);
-                  }
-                }}
-                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium"
-              >
-                Register All Risks ({(viewingAssessment.analyses || []).length})
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    const allAnalyses = viewingAssessment.analyses || [];
+                    if (allAnalyses.length === 0) {
+                      alert('No questions to register as risks');
+                      return;
+                    }
+                    if (confirm(`Register all ${allAnalyses.length} questions as risks?`)) {
+                      registerAllRisks(allAnalyses, viewingAssessment.company);
+                    }
+                  }}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium"
+                >
+                  Register All Risks ({(viewingAssessment.analyses || []).length})
+                </button>
+                <button
+                  onClick={() => handleReanalyze(viewingAssessment._id)}
+                  disabled={reanalyzing}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded font-medium transition"
+                >
+                  {reanalyzing ? 'Re-analyzing...' : 'Re-analyze'}
+                </button>
+              </div>
               <button onClick={closeAssessmentModal} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded">Close</button>
             </div>
           </div>

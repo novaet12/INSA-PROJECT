@@ -15,6 +15,9 @@ export interface IQuestionAnalysis {
     gap: string;
     threat: string;
     mitigation: string;
+    impactLabel?: string;
+    likelihoodLabel?: string;
+    impactDescription?: string;
   };
   timestamp: Date;
 }
@@ -59,7 +62,10 @@ const QuestionAnalysisSchema = new Schema({
     riskColor: String,
     gap: String,
     threat: String,
-    mitigation: String
+    mitigation: String,
+    impactLabel: String,
+    likelihoodLabel: String,
+    impactDescription: String
   },
   timestamp: Date
 });

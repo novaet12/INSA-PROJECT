@@ -15,7 +15,10 @@ const createQuestionResult = (question: any, analysis: any) => {
             riskColor: analysis.riskColor,
             gap: analysis.gap,
             threat: analysis.threat,
-            mitigation: analysis.mitigation
+            mitigation: analysis.mitigation,
+            impactLabel: analysis.impactLabel,
+            likelihoodLabel: analysis.likelihoodLabel,
+            impactDescription: analysis.impactDescription
         },
         timestamp: new Date()
     };
@@ -146,6 +149,16 @@ export const performRiskAnalysis = async (questionnaireData: any[], apiKey: stri
                 const riskLevel = score >= 16 ? 'CRITICAL' : score >= 12 ? 'HIGH' : score >= 6 ? 'MEDIUM' : score >= 2 ? 'LOW' : 'VERY_LOW';
                 const riskColor = riskLevel === 'CRITICAL' ? '#dc2626' : riskLevel === 'HIGH' ? '#ef4444' : riskLevel === 'MEDIUM' ? '#f97316' : '#10b981';
 
+                const impactLabels = ['Minimal', 'Low', 'Moderate', 'High', 'Critical'];
+                const likelihoodLabels = ['Remote', 'Low', 'Moderate', 'High', 'Almost Certain'];
+                const impactDescriptions = [
+                    'Minor inconvenience with minimal business impact',
+                    'Slight disruption to operations',
+                    'Significant disruption requiring attention',
+                    'Severe impact on business operations',
+                    'Catastrophic consequences for the organization'
+                ];
+
                 analysis = {
                     likelihood,
                     impact,
@@ -154,7 +167,10 @@ export const performRiskAnalysis = async (questionnaireData: any[], apiKey: stri
                     mitigation: 'Review controls',
                     riskScore: score,
                     riskLevel,
-                    riskColor
+                    riskColor,
+                    impactLabel: impactLabels[impact - 1] || 'Moderate',
+                    likelihoodLabel: likelihoodLabels[likelihood - 1] || 'Moderate',
+                    impactDescription: impactDescriptions[impact - 1] || 'Requires manual impact assessment'
                 };
             } else {
                 const analysisResult = await analyzeQuestion(openai!, question);

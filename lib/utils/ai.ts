@@ -74,7 +74,8 @@ export interface RiskAnalysisResult {
   gap: string; // Security gap description
   threat: string; // Threat description
   mitigation: string; // Recommended control
-  
+  impactDescription?: string; // Detailed impact consequences
+
   // Calculated parameters
   riskScore: number; // likelihood * impact
   riskLevel: string; // VERY_LOW | LOW | MEDIUM | HIGH | CRITICAL
@@ -83,7 +84,7 @@ export interface RiskAnalysisResult {
   riskAction: string; // Recommended action
   riskPriority: string; // Priority level
   riskTimeline: string; // Implementation timeline
-  
+
   // Additional metadata
   likelihoodLabel: string; // e.g., "High"
   impactLabel: string; // e.g., "Critical"
@@ -217,6 +218,10 @@ const parseAIResponse = (response: string): Partial<RiskAnalysisResult> => {
     if (lowerLine.includes('mitigation:')) {
       data.mitigation = line.replace(/MITIGATION:/i, '').trim();
     }
+
+    if (lowerLine.includes('impact_description:') || lowerLine.includes('impact description:')) {
+      data.impactDescription = line.replace(/IMPACT[_\s]DESCRIPTION:/i, '').trim();
+    }
   });
 
   // Calculate risk metrics
@@ -245,8 +250,9 @@ IMPACT: [number 1-5]
 GAP: [One line description of security gap]
 THREAT: [One line description of main threat]
 MITIGATION: [One line recommended control or mitigation strategy]
+IMPACT_DESCRIPTION: [One line description of potential business/security consequences]
 
-Be precise and concise. Only output the 5 lines above.`;
+Be precise and concise. Only output the 6 lines above.`;
 
   const userPrompt = `Analyze this security control and identify the risk:
 
@@ -298,6 +304,7 @@ Evaluate the security posture and provide risk assessment in the exact format sp
       gap: parsed.gap || 'Analysis error occurred',
       threat: parsed.threat || 'Unable to analyze threat',
       mitigation: parsed.mitigation || 'Manual review required',
+      impactDescription: parsed.impactDescription || 'Impact assessment requires manual review',
       riskScore: parsed.riskScore || calculateRiskScore(3, 3),
       riskLevel: parsed.riskLevel || 'MEDIUM',
       riskColor: parsed.riskColor || RISK_MATRIX_CONFIG.riskLevels.MEDIUM.color,
@@ -330,6 +337,7 @@ Evaluate the security posture and provide risk assessment in the exact format sp
       gap: 'Analysis error occurred - manual review required',
       threat: 'Unable to analyze threat automatically',
       mitigation: 'Please review control manually and define mitigation',
+      impactDescription: 'Impact assessment requires manual review',
       riskScore: defaultMetrics.riskScore,
       riskLevel: defaultMetrics.riskLevel,
       riskColor: defaultMetrics.riskColor,
@@ -461,9 +469,9 @@ Very Low (1-3):    ${Array(summary.veryLowCount).fill('🔵').join('')} (${summa
 ## Top 10 Priority Risks
 
 ${sortedByRisk
-  .slice(0, 10)
-  .map(
-    (r, i) => `
+      .slice(0, 10)
+      .map(
+        (r, i) => `
 ### ${i + 1}. ${r.gap}
 
 - **Risk Score:** ${r.riskScore}/25 (${r.riskLabel})
@@ -476,8 +484,8 @@ ${sortedByRisk
 - **Control Area:** ${r.section}
 ${r.category ? `- **Category:** ${r.category}` : ''}
 `
-  )
-  .join('\n')}
+      )
+      .join('\n')}
 
 ---
 
@@ -486,11 +494,11 @@ ${r.category ? `- **Category:** ${r.category}` : ''}
 | # | Control | Risk Score | Level | Likelihood | Impact | Threat | Mitigation |
 |---|---------|-----------|-------|-----------|--------|--------|-----------|
 ${sortedByRisk
-  .map(
-    (r, i) =>
-      `| ${i + 1} | ${r.gap.substring(0, 20)}... | ${r.riskScore} | ${r.riskLabel} | ${r.likelihood}/5 | ${r.impact}/5 | ${r.threat.substring(0, 15)}... | ${r.mitigation.substring(0, 15)}... |`
-  )
-  .join('\n')}
+      .map(
+        (r, i) =>
+          `| ${i + 1} | ${r.gap.substring(0, 20)}... | ${r.riskScore} | ${r.riskLabel} | ${r.likelihood}/5 | ${r.impact}/5 | ${r.threat.substring(0, 15)}... | ${r.mitigation.substring(0, 15)}... |`
+      )
+      .join('\n')}
 
 ---
 
@@ -504,18 +512,17 @@ ${sortedByRisk
 - **Very Low (Acceptable):** ${summary.veryLowCount} controls
 
 ### By Category
-${
-  Array.from(new Set(results.map((r) => r.category || 'Uncategorized')))
-    .map((cat) => {
-      const count = results.filter((r) => (r.category || 'Uncategorized') === cat).length;
-      const avgScore =
-        results
-          .filter((r) => (r.category || 'Uncategorized') === cat)
-          .reduce((sum, r) => sum + r.riskScore, 0) / count;
-      return `- **${cat}:** ${count} controls (Avg Risk: ${avgScore.toFixed(2)})`;
-    })
-    .join('\n')
-}
+${Array.from(new Set(results.map((r) => r.category || 'Uncategorized')))
+      .map((cat) => {
+        const count = results.filter((r) => (r.category || 'Uncategorized') === cat).length;
+        const avgScore =
+          results
+            .filter((r) => (r.category || 'Uncategorized') === cat)
+            .reduce((sum, r) => sum + r.riskScore, 0) / count;
+        return `- **${cat}:** ${count} controls (Avg Risk: ${avgScore.toFixed(2)})`;
+      })
+      .join('\n')
+    }
 
 ---
 
@@ -523,21 +530,21 @@ ${
 
 ### Immediate Actions (Next 30 Days)
 ${sortedByRisk
-  .filter((r) => r.riskLevel === 'CRITICAL')
-  .slice(0, 5)
-  .map(
-    (r, i) => `${i + 1}. **${r.gap}**\n   - Action: ${r.mitigation}\n   - Timeline: ${r.riskTimeline}`
-  )
-  .join('\n\n') || 'No critical risks identified'}
+      .filter((r) => r.riskLevel === 'CRITICAL')
+      .slice(0, 5)
+      .map(
+        (r, i) => `${i + 1}. **${r.gap}**\n   - Action: ${r.mitigation}\n   - Timeline: ${r.riskTimeline}`
+      )
+      .join('\n\n') || 'No critical risks identified'}
 
 ### Short-term Actions (30-90 Days)
 ${sortedByRisk
-  .filter((r) => r.riskLevel === 'HIGH')
-  .slice(0, 5)
-  .map(
-    (r, i) => `${i + 1}. **${r.gap}**\n   - Action: ${r.mitigation}\n   - Timeline: ${r.riskTimeline}`
-  )
-  .join('\n\n') || 'No high risks identified'}
+      .filter((r) => r.riskLevel === 'HIGH')
+      .slice(0, 5)
+      .map(
+        (r, i) => `${i + 1}. **${r.gap}**\n   - Action: ${r.mitigation}\n   - Timeline: ${r.riskTimeline}`
+      )
+      .join('\n\n') || 'No high risks identified'}
 
 ---
 

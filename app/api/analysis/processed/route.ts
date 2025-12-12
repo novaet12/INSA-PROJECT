@@ -53,7 +53,9 @@ export async function GET() {
                     riskLevel: a.analysis?.riskLevel || 'UNKNOWN',
                     gap: a.analysis?.gap || '',
                     threat: a.analysis?.threat || '',
-                    mitigation: a.analysis?.mitigation || ''
+                    mitigation: a.analysis?.mitigation || '',
+                    impactLabel: a.analysis?.impactLabel || '',
+                    impactDescription: a.analysis?.impactDescription || ''
                 })),
                 riskMatrix: riskMatrixArray,
                 summary: analysis.summary
