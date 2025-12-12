@@ -45,12 +45,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
-  // Assessment states
   const [processedAssessments, setProcessedAssessments] = useState<ProcessedAssessment[]>([]);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [viewingAssessment, setViewingAssessment] = useState<ProcessedAssessment | null>(null);
-  
-  // state for edit modal: stores current item to edit
   const [viewingEdit, setViewingEdit] = useState<{
     assessmentId: string;
     level: string;
@@ -58,13 +55,11 @@ export default function DashboardPage() {
     current: any;
   } | null>(null);
 
-  // Filters
   const [companyFilter, setCompanyFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [availableCompanies, setAvailableCompanies] = useState<string[]>([]);
 
-  // Risk registration
   const [registeringRisk, setRegisteringRisk] = useState<QuestionAnalysis | null>(null);
   const [selectedCompany, setSelectedCompany] = useState("");
   const [riskFormData, setRiskFormData] = useState({ category: "", status: "open", owner: "" });
@@ -79,10 +74,8 @@ export default function DashboardPage() {
     }
   }, [status, router]);
 
-  // Poll for updates every 15 seconds so the dashboard reflects new analyses
   useEffect(() => {
     if (status !== 'authenticated') return;
-    // Prefer SSE updates if available; fallback to polling for older browsers
     let es: EventSource | null = null;
     if (typeof window !== 'undefined' && 'EventSource' in window) {
       try {
@@ -90,7 +83,7 @@ export default function DashboardPage() {
         es.addEventListener('analysis', (ev: MessageEvent) => {
           try {
             const payload = JSON.parse(ev.data);
-            // Refresh processed assessments (could also optimistically append)
+
             fetchProcessedAssessments();
           } catch (e) { fetchProcessedAssessments(); }
         });
@@ -118,10 +111,15 @@ export default function DashboardPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch("/api/companies/list");
+      const res = await fetch("/api/analysis/processed");
       const data = await res.json();
-      if (data.success && Array.isArray(data.companies)) {
-        setAvailableCompanies(data.companies);
+      if (data.success && Array.isArray(data.assessments)) {
+        const companies = Array.from(new Set(
+          data.assessments
+            .map((assessment: ProcessedAssessment) => assessment.company)
+            .filter((company: string) => company)
+        )) as string[];
+        setAvailableCompanies(companies);
       }
     } catch (error) {
       console.error("Error fetching companies:", error);
@@ -151,12 +149,12 @@ export default function DashboardPage() {
 
   const closeAssessmentModal = () => setViewingAssessment(null);
 
-  // manual analysis trigger removed from dashboard UI (auto-analysis handles imports)
+
 
   const openRegisterRiskModal = (analysis: QuestionAnalysis, company: string) => {
     setRegisteringRisk(analysis);
     setSelectedCompany(company);
-    setRiskFormData({ category: "", status: "open", owner: (session?.user as any)?.email || "" }); // eslint-disable-line @typescript-eslint/no-explicit-any
+    setRiskFormData({ category: "", status: "open", owner: (session?.user as any)?.email || "" });
   };
 
   const closeRegisterRiskModal = () => {
@@ -188,7 +186,7 @@ export default function DashboardPage() {
     }
   };
 
-  // CHANGED Now uses /api/risks/create endpoint with proper structure
+
   const handleRegisterRisk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!registeringRisk) return;
@@ -225,6 +223,59 @@ export default function DashboardPage() {
     }
   };
 
+  const registerAllRisks = async (analyses: QuestionAnalysis[], company: string) => {
+    try {
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const analysis of analyses) {
+        try {
+          const res = await fetch("/api/risks/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              description: `${analysis.question} — Answer: ${analysis.answer}`,
+              company: company,
+              category: "Assessment Risk",
+              level: analysis.riskLevel.toLowerCase(),
+              likelihood: analysis.likelihood,
+              impact: analysis.impact,
+              status: "open",
+              owner: (session?.user as any)?.email || "",
+              gap: analysis.gap,
+              threat: analysis.threat,
+              mitigation: analysis.mitigation,
+              mitigationStrategy: analysis.mitigation,
+            }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (error) {
+          console.error("Error registering individual risk:", error);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        setMessage({
+          type: 'success',
+          text: `Successfully registered ${successCount} risk(s)${failCount > 0 ? `, ${failCount} failed` : ''}`
+        });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to register risks' });
+      }
+
+      closeAssessmentModal();
+    } catch (error) {
+      console.error(error);
+      setMessage({ type: 'error', text: 'Error registering risks' });
+    }
+  };
+
   const filterItems = <T extends { company?: string; category?: string; date?: string }>(items: T[]) => {
     return items.filter(item => {
       if (!item) return false;
@@ -247,7 +298,11 @@ export default function DashboardPage() {
 
   if (!session) return null;
 
-  const filteredAssessments = filterItems(processedAssessments);
+  const filteredAssessments = filterItems(processedAssessments).sort((a, b) => {
+    const dateA = a.date ? new Date(a.date).getTime() : 0;
+    const dateB = b.date ? new Date(b.date).getTime() : 0;
+    return dateB - dateA;
+  });
 
   return (
     <Layout>
@@ -258,25 +313,21 @@ export default function DashboardPage() {
 
 
         <div className="space-y-6">
-          {/* Filters */}
           <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
             <h3 className="text-lg font-bold text-white mb-4">🔍 Filter Assessments</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs text-slate-400 mb-2">Company Name</label>
-                <input
-                  type="text"
-                  list="company-list"
+                <select
                   value={companyFilter}
                   onChange={(e) => setCompanyFilter(e.target.value)}
-                  placeholder="Filter by company..."
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
-                />
-                <datalist id="company-list">
+                >
+                  <option value="">All</option>
                   {availableCompanies.map((company) => (
-                    <option key={company} value={company} />
+                    <option key={company} value={company}>{company}</option>
                   ))}
-                </datalist>
+                </select>
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-2">Category Level</label>
@@ -284,7 +335,7 @@ export default function DashboardPage() {
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
 
-            
+
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
                 >
                   <option value="">All Categories</option>
@@ -305,22 +356,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Risk Matrix: moved to its own page */}
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 mb-6">
-            <h3 className="text-lg font-bold text-white mb-4">Risk Matrix</h3>
-            <div className="text-slate-300 mb-4">The Risk Matrix has moved to its own page for a fuller view and interactive selection.</div>
-            <div className="flex items-center gap-3">
-              <Link href="/risk-matrix" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium">Open Risk Matrix</Link>
-              <button onClick={() => fetchProcessedAssessments()} className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm">Refresh</button>
-            </div>
-            {filteredAssessments[0] && (
-              <div className="mt-4 text-sm text-slate-400">Latest: <span className="text-white font-medium">{filteredAssessments[0].company}</span> • {filteredAssessments[0].analyses.length} questions • {filteredAssessments[0].date ? new Date(filteredAssessments[0].date).toLocaleDateString() : 'No date'}</div>
-            )}
-          </div>
-
-          {/* Processed Assessments (grouped by analysis run) */}
+          <h3 className="text-xl font-bold text-white">Processed Assessments</h3>
           <div className="space-y-6">
-            <h3 className="text-xl font-bold text-white">Processed Assessments</h3>
             {filteredAssessments.length === 0 ? (
               <div className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg p-12 text-center">
                 <div className="text-6xl mb-4 opacity-30"> </div>
@@ -437,7 +474,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-      
+
       {/* Assessment Details Modal (group run) */}
       {viewingAssessment && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -495,12 +532,6 @@ export default function DashboardPage() {
 
                   <div className="mt-4 flex gap-2">
                     <button
-                      onClick={() => openRegisterRiskModal(a as any, viewingAssessment.company)}
-                      className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
-                    >
-                      Register Risk
-                    </button>
-                    <button
                       onClick={() => setViewingEdit({ assessmentId: viewingAssessment._id, level: a.level, questionId: a.questionId, current: a })}
                       className="px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm"
                     >
@@ -511,7 +542,25 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-between items-center">
+              <button
+                onClick={() => {
+                  // Register all risks from this questionnaire
+                  const allAnalyses = viewingAssessment.analyses || [];
+                  if (allAnalyses.length === 0) {
+                    alert('No questions to register as risks');
+                    return;
+                  }
+                  // For now, we'll open a modal to register all at once
+                  // You could also batch register them
+                  if (confirm(`Register all ${allAnalyses.length} questions as risks?`)) {
+                    registerAllRisks(allAnalyses, viewingAssessment.company);
+                  }
+                }}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium"
+              >
+                Register All Risks ({(viewingAssessment.analyses || []).length})
+              </button>
               <button onClick={closeAssessmentModal} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded">Close</button>
             </div>
           </div>

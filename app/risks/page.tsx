@@ -36,10 +36,11 @@ interface Stats {
 export default function RisksPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
+
   const [allRisks, setAllRisks] = useState<Risk[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [availableCompanies, setAvailableCompanies] = useState<string[]>([]);
+
   // Filter states
   const [companyFilter, setCompanyFilter] = useState("");
   const [levelFilter, setLevelFilter] = useState("");
@@ -51,6 +52,7 @@ export default function RisksPage() {
       router.push("/login");
     } else if (status === "authenticated") {
       fetchRegisteredRisks();
+      fetchCompanies();
     }
   }, [status, router]);
 
@@ -69,7 +71,7 @@ export default function RisksPage() {
       if (levelFilter) params.append('level', levelFilter);
       if (statusFilter) params.append('status', statusFilter);
       if (dateFilter) params.append('dateFrom', dateFilter);
-      
+
       const res = await fetch(`/api/risks/list?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
@@ -79,6 +81,23 @@ export default function RisksPage() {
       console.error("Failed to fetch registered risks", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch('/api/risks/list');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.risks)) {
+        const companies = Array.from(new Set(
+          data.risks
+            .map((risk: Risk) => risk.company)
+            .filter((company: string | undefined) => company)
+        )) as string[];
+        setAvailableCompanies(companies);
+      }
+    } catch (error) {
+      console.error("Error fetching companies:", error);
     }
   };
 
@@ -158,13 +177,16 @@ export default function RisksPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs text-slate-400 mb-2">Company Name</label>
-              <input
-                type="text"
+              <select
                 value={companyFilter}
                 onChange={(e) => setCompanyFilter(e.target.value)}
-                placeholder="Filter by company..."
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm focus:border-blue-500 focus:outline-none"
-              />
+              >
+                <option value="">All</option>
+                {availableCompanies.map((company) => (
+                  <option key={company} value={company}>{company}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-2">Risk Level</label>
@@ -253,12 +275,11 @@ export default function RisksPage() {
               return (
                 <div
                   key={risk._id}
-                  className={`bg-slate-800 rounded-lg border-l-4 p-6 hover:transform hover:-translate-y-1 transition-all ${
-                    risk.level === "critical" ? "border-l-red-600" :
-                    risk.level === "high" ? "border-l-orange-500" :
-                    risk.level === "medium" ? "border-l-yellow-500" :
-                    "border-l-green-500"
-                  }`}
+                  className={`bg-slate-800 rounded-lg border-l-4 p-6 hover:transform hover:-translate-y-1 transition-all ${risk.level === "critical" ? "border-l-red-600" :
+                      risk.level === "high" ? "border-l-orange-500" :
+                        risk.level === "medium" ? "border-l-yellow-500" :
+                          "border-l-green-500"
+                    }`}
                 >
                   {/* Header */}
                   <div className="mb-4">

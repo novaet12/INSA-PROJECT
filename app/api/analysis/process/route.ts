@@ -1,4 +1,3 @@
-// app/api/analysis/process/route.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Questionnaire from "@/models/Questionnaire";
@@ -7,11 +6,6 @@ import { performRiskAnalysis } from "@/lib/services/riskAnalyzer";
 
 export async function POST(request: Request) {
   try {
-    // TEMPORARILY DISABLED FOR TESTING
-    // const session = await getSession();
-    // if (!session) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
 
     const { questionnaireId } = await request.json();
 
@@ -22,7 +16,6 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Check for API key
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return NextResponse.json({
@@ -33,7 +26,6 @@ export async function POST(request: Request) {
 
     await dbConnect();
 
-    // Fetch questionnaire
     const questionnaire = await Questionnaire.findById(questionnaireId);
     if (!questionnaire) {
       return NextResponse.json({
@@ -42,7 +34,6 @@ export async function POST(request: Request) {
       }, { status: 404 });
     }
 
-    // Check if already analyzed
     const existingAnalysis = await RiskAnalysis.findOne({ questionnaireId });
     if (existingAnalysis) {
       return NextResponse.json({
@@ -57,16 +48,15 @@ export async function POST(request: Request) {
     // Ensure questionnaire has a category — infer from questions if missing
     const inferCategoryFromQuestions = (questions: { level?: string }[] | undefined): 'operational' | 'tactical' | 'strategic' => {
       if (!questions || questions.length === 0) return 'operational';
-      const counts: Record<'operational'|'tactical'|'strategic', number> = { operational: 0, tactical: 0, strategic: 0 };
+      const counts: Record<'operational' | 'tactical' | 'strategic', number> = { operational: 0, tactical: 0, strategic: 0 };
       for (const q of questions) {
         const lvl = q?.level ? String(q.level).toLowerCase() : '';
         if (lvl === 'operational' || lvl === 'tactical' || lvl === 'strategic') {
-          counts[lvl as 'operational'|'tactical'|'strategic']++;
+          counts[lvl as 'operational' | 'tactical' | 'strategic']++;
         }
       }
-      // pick the max count; default to operational on tie/zero
       const sorted = (Object.entries(counts) as [string, number][]).sort((a, b) => b[1] - a[1]);
-      return (sorted[0] && (sorted[0][0] as 'operational'|'tactical'|'strategic')) || 'operational';
+      return (sorted[0] && (sorted[0][0] as 'operational' | 'tactical' | 'strategic')) || 'operational';
     };
 
     const categoryToUse = questionnaire.category || inferCategoryFromQuestions(questionnaire.questions);
@@ -81,14 +71,12 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Acquire analysis lock to avoid duplicate/race analyses
     const { acquireAnalysisLock, releaseAnalysisLock } = await import('@/lib/services/analysisLock');
     const lock = await acquireAnalysisLock(String(questionnaire._id));
     if (!lock || !lock.acquired) {
       return NextResponse.json({ success: false, error: 'Analysis already in progress for this questionnaire' }, { status: 409 });
     }
 
-    // Perform risk analysis (this will take time based on question count)
     let analysisResults: any;
     try {
       analysisResults = await performRiskAnalysis(
@@ -96,11 +84,9 @@ export async function POST(request: Request) {
         apiKey
       );
     } finally {
-      // release lock in finally to ensure it's removed even on error
       try { await import('@/lib/services/analysisLock').then(m => m.releaseAnalysisLock(String(questionnaire._id))); } catch (e) { }
     }
 
-    // Save to database (ensure category is set)
     const riskAnalysis = new RiskAnalysis({
       questionnaireId: questionnaire._id,
       company: questionnaire.company,
@@ -114,9 +100,8 @@ export async function POST(request: Request) {
 
     await riskAnalysis.save();
 
-  // Update questionnaire status and save any inferred category
-  questionnaire.status = 'analyzed';
-  await questionnaire.save();
+    questionnaire.status = 'analyzed';
+    await questionnaire.save();
 
     console.log(`✅ Analysis completed for questionnaire: ${questionnaireId}`);
 

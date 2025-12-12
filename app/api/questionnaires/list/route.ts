@@ -1,4 +1,3 @@
-// app/api/questionnaires/list/route.ts
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
@@ -6,12 +5,6 @@ import Questionnaire from "@/models/Questionnaire";
 
 export async function GET() {
   try {
-    // TEMPORARILY DISABLED FOR TESTING
-    // const session = await getSession();
-    // if (!session) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
-
     await dbConnect();
 
     const questionnaires = await Questionnaire.find()
@@ -19,7 +12,6 @@ export async function GET() {
       .select('title company filledBy role filledDate status questions')
       .lean();
 
-    // Format for frontend
     const formattedQuestionnaires = questionnaires.map(q => ({
       _id: q._id.toString(),
       title: q.title,

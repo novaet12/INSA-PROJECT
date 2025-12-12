@@ -1,4 +1,3 @@
-// lib/services/riskService.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import connectDB from "@/lib/mongodb";
 import RiskRegister from "@/models/RiskRegister";

@@ -1,4 +1,3 @@
-// app/api/analysis/processed/route.ts
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";

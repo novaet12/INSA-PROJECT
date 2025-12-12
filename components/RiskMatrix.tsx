@@ -1,4 +1,3 @@
-// components/RiskMatrix.tsx
 import React from 'react';
 
 interface RiskMatrixData {
@@ -45,7 +44,7 @@ const RiskMatrix: React.FC<RiskMatrixProps> = ({ data }) => {
       <div className="grid grid-cols-6 gap-1">
         {/* Top-left empty cell */}
         <div className="h-8"></div>
-        
+
         {/* Likelihood labels (horizontal) */}
         {[1, 2, 3, 4, 5].map(l => (
           <div key={`likelihood-${l}`} className="h-8 flex items-center justify-center text-xs text-slate-400 font-semibold">
@@ -60,14 +59,14 @@ const RiskMatrix: React.FC<RiskMatrixProps> = ({ data }) => {
             <div className="h-12 flex items-center justify-center text-xs text-slate-400 font-semibold">
               I{5 - rowIndex}
             </div>
-            
+
             {/* Matrix cells */}
             {row.map((count, colIndex) => {
               const likelihood = colIndex + 1;
               const impact = 5 - rowIndex;
               const colorClass = getColor(likelihood, impact);
               const opacityClass = getCellOpacity(count);
-              
+
               return (
                 <div
                   key={`cell-${rowIndex}-${colIndex}`}

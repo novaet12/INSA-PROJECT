@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Questionnaire from "@/models/Questionnaire";
 
-/**
- * Dev-only seeded questionnaire endpoint.
- * Usage (local/dev):
- *   POST /api/questionnaires/seed?secret=your_dev_secret
- * Set DEV_SEED_SECRET in your .env.local to protect this in shared environments.
- */
+// Dev-only endpoint: POST /api/questionnaires/seed?secret=your_dev_secret
 export async function POST(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
@@ -22,14 +17,14 @@ export async function POST(req: NextRequest) {
 
     await dbConnect();
 
-  const variant = searchParams.get("variant") || "default";
-  // optional flag to randomize the category for seeded questionnaires
-  const randomFlag = (searchParams.get("random") === "true") || (searchParams.get("randomCategory") === "true");
+    const variant = searchParams.get("variant") || "default";
+    // optional flag to randomize the category for seeded questionnaires
+    const randomFlag = (searchParams.get("random") === "true") || (searchParams.get("randomCategory") === "true");
 
-  const categories = ["operational", "tactical", "strategic"] as const;
-  const pickRandomCategory = () => categories[Math.floor(Math.random() * categories.length)];
+    const categories = ["operational", "tactical", "strategic"] as const;
+    const pickRandomCategory = () => categories[Math.floor(Math.random() * categories.length)];
 
-  let fakeData: any;
+    let fakeData: any;
 
     if (variant === "physical") {
       // Physical data center security questionnaire (from user request)
@@ -71,7 +66,7 @@ export async function POST(req: NextRequest) {
 
     const fake = new Questionnaire(fakeData);
 
-  const saved = await fake.save();
+    const saved = await fake.save();
 
     return NextResponse.json({ success: true, questionnaire: saved });
   } catch (err) {
