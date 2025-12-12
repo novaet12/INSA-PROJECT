@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Questionnaire from "@/models/Questionnaire";
+import RiskAnalysis from "@/models/RiskAnalysis";
+import { performRiskAnalysis } from "@/lib/services/riskAnalyzer";
 import axios from "axios";
 
 export async function POST(req: NextRequest) {
@@ -13,6 +15,7 @@ export async function POST(req: NextRequest) {
 
     const externalApiUrl = process.env.EXTERNAL_QUESTIONNAIRE_API_URL;
     const externalApiKey = process.env.EXTERNAL_API_KEY;
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 
     if (!externalApiUrl) {
       return NextResponse.json(
@@ -36,6 +39,7 @@ export async function POST(req: NextRequest) {
     await dbConnect();
 
     const savedQuestionnaires = [];
+    const analyzedCount = { success: 0, failed: 0, skipped: 0 };
 
     for (const q of questionnaires) {
       // Check if questionnaire already exists by external ID
@@ -67,8 +71,52 @@ export async function POST(req: NextRequest) {
 
         const saved = await newQuestionnaire.save();
         savedQuestionnaires.push(saved);
+
+        // Automatically analyze the new questionnaire
+        if (openRouterApiKey && questions.length > 0) {
+          try {
+            console.log(`🤖 Auto-analyzing questionnaire: ${saved._id} (${saved.company})`);
+
+            // Check if already analyzed
+            const existingAnalysis = await RiskAnalysis.findOne({ questionnaireId: saved._id });
+            if (!existingAnalysis) {
+              const analysisResults = await performRiskAnalysis(questions, openRouterApiKey);
+
+              const riskAnalysis = new RiskAnalysis({
+                questionnaireId: saved._id,
+                company: saved.company,
+                category: category as 'operational' | 'tactical' | 'strategic',
+                metadata: analysisResults.metadata,
+                operational: analysisResults.operational,
+                tactical: analysisResults.tactical,
+                strategic: analysisResults.strategic,
+                summary: analysisResults.summary
+              });
+
+              await riskAnalysis.save();
+
+              // Update questionnaire status
+              saved.status = 'analyzed';
+              await saved.save();
+
+              analyzedCount.success++;
+              console.log(`✅ Auto-analysis completed for: ${saved.company}`);
+            } else {
+              analyzedCount.skipped++;
+              console.log(`⏭️ Questionnaire already analyzed: ${saved.company}`);
+            }
+          } catch (analysisError) {
+            analyzedCount.failed++;
+            console.error(`❌ Auto-analysis failed for ${saved.company}:`, analysisError);
+            // Don't fail the entire request if analysis fails
+          }
+        } else {
+          analyzedCount.skipped++;
+          console.log(`⏭️ Skipping analysis (no API key or no questions): ${saved.company}`);
+        }
       } else {
         savedQuestionnaires.push(existing);
+        analyzedCount.skipped++;
       }
     }
 
@@ -76,6 +124,11 @@ export async function POST(req: NextRequest) {
       success: true,
       count: savedQuestionnaires.length,
       questionnaires: savedQuestionnaires,
+      analysis: {
+        analyzed: analyzedCount.success,
+        failed: analyzedCount.failed,
+        skipped: analyzedCount.skipped
+      }
     });
   } catch (error: any) {
     console.error("Error fetching questionnaires:", error);
