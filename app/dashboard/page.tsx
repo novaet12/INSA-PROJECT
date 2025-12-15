@@ -337,7 +337,7 @@ export default function DashboardPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-white">board</h1>
 
 
 
