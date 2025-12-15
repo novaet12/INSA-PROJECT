@@ -50,8 +50,8 @@ export async function POST(request: Request) {
             }, { status: 400 });
         }
 
-        console.log(`🔄 Re-analyzing questionnaire: ${existingAnalysis.questionnaireId}`);
-        console.log(`📋 Total questions: ${questionnaire.questions.length}`);
+        console.log(` Re-analyzing questionnaire: ${existingAnalysis.questionnaireId}`);
+        console.log(` Total questions: ${questionnaire.questions.length}`);
 
         // Delete old analysis
         await RiskAnalysis.findByIdAndDelete(analysisId);
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
 
         await newRiskAnalysis.save();
 
-        console.log(`✅ Re-analysis completed for questionnaire: ${existingAnalysis.questionnaireId}`);
+        console.log(` Re-analysis completed for questionnaire: ${existingAnalysis.questionnaireId}`);
 
         return NextResponse.json({
             success: true,
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
 
     } catch (error: unknown) {
         const errMsg = error instanceof Error ? error.message : String(error);
-        console.error("❌ Error during re-analysis:", errMsg);
+        console.error(" Error during re-analysis:", errMsg);
         return NextResponse.json({
             success: false,
             error: errMsg || "Failed to re-analyze"
