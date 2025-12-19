@@ -192,7 +192,7 @@ export default function DashboardPage() {
 
   const handleRegisterRisk = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registeringRisk) return;
+    if (!registeringRisk || !viewingAssessment) return;
 
     try {
       const res = await fetch("/api/risks/create", {
@@ -211,8 +211,10 @@ export default function DashboardPage() {
           threat: registeringRisk.threat,
           mitigation: registeringRisk.mitigation,
           mitigationStrategy: registeringRisk.mitigation,
+          questionnaireId: viewingAssessment._id, // <-- attached questionnaire ID
         }),
       });
+
       const data = await res.json();
       if (data.success) {
         setMessage({ type: 'success', text: 'Risk registered successfully' });
@@ -227,12 +229,16 @@ export default function DashboardPage() {
   };
 
   const registerAllRisks = async (analyses: QuestionAnalysis[], company: string) => {
+    if (!viewingAssessment) return;
+
     try {
       let successCount = 0;
       let failCount = 0;
 
       for (const analysis of analyses) {
         try {
+          if (analysis.gap === "No significant gap identified") continue;
+
           const res = await fetch("/api/risks/create", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -248,9 +254,10 @@ export default function DashboardPage() {
               gap: analysis.gap,
               threat: analysis.threat,
               mitigation: analysis.mitigation,
-              mitigationStrategy: analysis.mitigation,
+              questionnaireId: viewingAssessment._id, // <-- attached questionnaire ID
             }),
           });
+
           const data = await res.json();
           if (data.success) {
             successCount++;
@@ -278,6 +285,7 @@ export default function DashboardPage() {
       setMessage({ type: 'error', text: 'Error registering risks' });
     }
   };
+
 
   const handleReanalyze = async (assessmentId: string) => {
     if (!confirm('Re-analyze this assessment? This will replace the existing analysis with fresh AI results.')) return;

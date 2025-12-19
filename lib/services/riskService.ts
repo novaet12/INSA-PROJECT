@@ -17,7 +17,9 @@ export interface CreateRiskDTO {
   mitigationStrategy?: string;
   mitigationCost?: number;
   mitigationEffectiveness?: number;
+  questionnaireId?: string; // <--- added
 }
+
 
 export class RiskService {
   // Create a new risk
