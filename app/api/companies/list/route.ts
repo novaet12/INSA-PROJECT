@@ -17,7 +17,7 @@ export async function GET() {
 
         return NextResponse.json({
             success: true,
-            companies: companies.filter(Boolean).sort() // Remove null/undefined and sort alphabetically
+            companies: companies.filter(Boolean).sort()
         });
     } catch (error) {
         console.error("Error fetching companies:", error);

@@ -18,12 +18,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Analysis not found' }, { status: 404 });
     }
 
-    const bucket = (riskAnalysis as any)[level];
+    const bucket = (riskAnalysis as any)[level]; // eslint-disable-line @typescript-eslint/no-explicit-any
     if (!Array.isArray(bucket)) {
       return NextResponse.json({ success: false, error: 'Invalid level specified' }, { status: 400 });
     }
 
-    const idx = bucket.findIndex((q: any) => q.questionId === questionId || String(q.questionId) === String(questionId));
+    const idx = bucket.findIndex((q: any) => q.questionId === questionId || String(q.questionId) === String(questionId)); // eslint-disable-line @typescript-eslint/no-explicit-any
     if (idx === -1) {
       return NextResponse.json({ success: false, error: 'Question not found in analysis' }, { status: 404 });
     }
@@ -41,11 +41,11 @@ export async function POST(req: NextRequest) {
     };
 
     // mark modified and save
-    (riskAnalysis as any).markModified(level);
+    (riskAnalysis as any).markModified(level); // eslint-disable-line @typescript-eslint/no-explicit-any
     await riskAnalysis.save();
 
     return NextResponse.json({ success: true, analysis: riskAnalysis });
-  } catch (err: any) {
+  } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error('Error updating analysis question:', err);
     return NextResponse.json({ success: false, error: err.message || 'Failed to update' }, { status: 500 });
   }

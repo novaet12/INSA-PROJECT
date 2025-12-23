@@ -16,10 +16,9 @@ export async function GET(req: NextRequest) {
 
     // Build 5x5 matrix
     const matrix: { [key: string]: number } = {};
-    
     analyses.forEach((analysis) => {
       const all = [ ...(analysis.operational || []), ...(analysis.tactical || []), ...(analysis.strategic || []) ];
-      all.forEach((item: any) => {
+      all.forEach((item: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         const likelihood = item.analysis?.likelihood || 0;
         const impact = item.analysis?.impact || 0;
         const key = `${likelihood}-${impact}`;
@@ -47,7 +46,7 @@ export async function GET(req: NextRequest) {
     const assetValueFactor = 10000;
     const aleData = analyses.flatMap((analysis) => {
       const all = [ ...(analysis.operational || []), ...(analysis.tactical || []), ...(analysis.strategic || []) ];
-      return all.map((item: any) => {
+      return all.map((item: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         const likelihood = item.analysis?.likelihood || 0;
         const impact = item.analysis?.impact || 0;
         return {

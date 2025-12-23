@@ -27,7 +27,7 @@ export async function GET() {
 
             // Create risk matrix data for visualization
             const riskMatrix: { [key: string]: number } = {};
-            allAnalyses.forEach((item: any) => {
+            allAnalyses.forEach((item: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
                 const key = `${item.analysis.likelihood}-${item.analysis.impact}`;
                 riskMatrix[key] = (riskMatrix[key] || 0) + 1;
             });
@@ -42,7 +42,7 @@ export async function GET() {
                 company: analysis.company,
                 category: analysis.category,
                 date: analysis.createdAt,
-                analyses: allAnalyses.map((a: any) => ({
+                analyses: allAnalyses.map((a: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
                     questionId: a.questionId,
                     level: a.level,
                     question: a.question,
