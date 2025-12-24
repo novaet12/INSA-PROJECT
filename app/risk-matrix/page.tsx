@@ -94,7 +94,7 @@ export default function RiskMatrixPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-white">📊 Risk Matrix</h1>
+          <h1 className="text-3xl font-bold text-white">Risk Matrix</h1>
           <button
             onClick={fetchProcessedAssessments}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition font-medium"
@@ -108,7 +108,7 @@ export default function RiskMatrixPage() {
           {/* Selector */}
           <div className="mb-6">
             <h3 className="text-lg font-bold text-white mb-4">
-              🔍 Select Assessment
+               Select Assessment
             </h3>
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div className="flex-1">
@@ -144,7 +144,7 @@ export default function RiskMatrixPage() {
             </div>
           ) : !selected ? (
             <div className="bg-slate-900/50 border-2 border-dashed border-slate-700 rounded-lg p-12 text-center">
-              <div className="text-6xl mb-4 opacity-30">📈</div>
+              <div className="text-6xl mb-4 opacity-30"></div>
               <p className="text-white font-semibold mb-2">
                 No assessment selected
               </p>

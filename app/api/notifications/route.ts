@@ -9,10 +9,10 @@ export async function GET() {
     try {
         await dbConnect();
 
-        // Fetch recent questionnaires (limit 10 for now)
+        // Fetch recent questionnaires 
         const questionnaires = await Questionnaire.find({})
             .sort({ createdAt: -1 })
-            .limit(10)
+            .limit(100)
             .lean();
 
         // Fetch recent analyses (limit 10 for now)

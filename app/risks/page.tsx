@@ -233,7 +233,7 @@ export default function RisksPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-white">🛡️ Risk Register</h1>
+          <h1 className="text-3xl font-bold text-white"> Risk Register</h1>
           <button
             onClick={() => {
               setIsCreateModalOpen(true);
@@ -247,7 +247,7 @@ export default function RisksPage() {
 
         {/* Filters */}
         <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-          <h3 className="text-lg font-bold text-white mb-4">🔍 Filter Risks</h3>
+          <h3 className="text-lg font-bold text-white mb-4"> Filter Risks</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -305,7 +305,7 @@ export default function RisksPage() {
         <div className="space-y-4">
           {registeredRisks.length === 0 ? (
             <div className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg p-12 text-center">
-              <div className="text-6xl mb-4 opacity-30">📋</div>
+              <div className="text-6xl mb-4 opacity-30"></div>
               <p className="text-white font-semibold mb-2">No risks found</p>
               <p className="text-slate-400">
                 Try adjusting your filters or add new risks to the register

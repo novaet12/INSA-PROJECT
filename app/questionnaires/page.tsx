@@ -116,7 +116,7 @@ export default function QuestionnairesPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-white">📋 Questionnaires</h1>
+          <h1 className="text-3xl font-bold text-white">Questionnaires</h1>
           <button
             onClick={fetchList}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition font-medium"
@@ -127,7 +127,7 @@ export default function QuestionnairesPage() {
 
         {/* Filters */}
         <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-          <h3 className="text-lg font-bold text-white mb-4">🔍 Filter & Sort</h3>
+          <h3 className="text-lg font-bold text-white mb-4">Filter & Sort</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
