@@ -23,11 +23,34 @@ export async function GET(request: Request) {
       dateTo: searchParams.get("dateTo") || undefined,
     };
 
-    const risks = await RiskService.getRisks(filters);
+    // Fetch risks from service
+    let risks = await RiskService.getRisks(filters);
+
+    // Filter out risks with no significant gap
+    risks = risks.filter(risk => risk.gap !== "No significant gap identified");
+
+    // Return only the relevant fields
+    const cleanedRisks = risks.map(risk => ({
+      riskId: risk.riskId,
+      description: risk.description,
+      company: risk.company,
+      category: risk.category,
+      level: risk.level,
+      likelihood: risk.likelihood,
+      impact: risk.impact,
+      status: risk.status,
+      owner: risk.owner,
+      gap: risk.gap,
+      threat: risk.threat,
+      mitigation: risk.mitigation,
+      questionnaireId: risk.questionnaireId, // <-- add this
+      createdAt: risk.createdAt,
+    }));
+
 
     return NextResponse.json({
       success: true,
-      risks,
+      risks: cleanedRisks,
     });
   } catch (error) {
     console.error("Error fetching risks:", error);
