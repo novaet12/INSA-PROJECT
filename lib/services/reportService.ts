@@ -108,7 +108,7 @@ const createRiskMatrixTable = (analyses: Analysis[]): Table => {
                         verticalAlign: VerticalAlign.CENTER,
                     }),
                     new TableCell({
-                        children: [new Paragraph(`${analysis.impact}/5`)],
+                        children: [new Paragraph(`${analysis.impactDescription}/5`)],
                         verticalAlign: VerticalAlign.CENTER,
                     }),
                     new TableCell({

@@ -42,8 +42,8 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    console.log(`🔄 Starting analysis for questionnaire: ${questionnaireId}`);
-    console.log(`📋 Total questions: ${questionnaire.questions?.length || 0}`);
+    console.log(` Starting analysis for questionnaire: ${questionnaireId}`);
+    console.log(` Total questions: ${questionnaire.questions?.length || 0}`);
 
     // Ensure questionnaire has a category — infer from questions if missing
     const inferCategoryFromQuestions = (questions: { level?: string }[] | undefined): 'operational' | 'tactical' | 'strategic' => {
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    console.error("❌ Error processing analysis:", errMsg);
+    console.error(" Error processing analysis:", errMsg);
     return NextResponse.json({
       success: false,
       error: errMsg || "Failed to process analysis"
