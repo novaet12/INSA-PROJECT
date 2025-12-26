@@ -407,7 +407,7 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>
           <div className="space-y-6">
           <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-            <h3 className="text-lg font-bold text-white mb-4">🔍 Filter Assessments</h3>
+            <h3 className="text-lg font-bold text-white mb-4">Filter Assessments</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs text-slate-400 mb-2">Company Name</label>
