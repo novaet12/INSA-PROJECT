@@ -85,11 +85,6 @@ const calculateOverallSummary = (allData: any[]) => {
         averageRiskScore: parseFloat(overallAvg)
     };
 };
-
-// ============================================================
-// MAIN ANALYSIS FUNCTION (EXPORTED)
-// ============================================================
-
 export const performRiskAnalysis = async (questionnaireData: any[], apiKey: string) => {
     const useStub = !apiKey;
     const openai = useStub ? undefined : initializeAI(apiKey as string);

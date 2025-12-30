@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     });
 
     const saved = await newQuestionnaire.save();
-    console.log(`✅ Questionnaire accepted: ${saved.company} (${saved._id})`);
+    console.log(`Questionnaire accepted: ${saved.company} (${saved._id})`);
 
     // Automatically analyze
     if (openRouterApiKey && questions.length > 0) {
@@ -79,10 +79,10 @@ export async function POST(req: NextRequest) {
           saved.status = "analyzed";
           await saved.save();
 
-          console.log(`✅ Auto-analysis completed for: ${saved.company}`);
+          console.log(`Auto-analysis completed for: ${saved.company}`);
         }
       } catch (analysisError) {
-        console.error(`❌ Auto-analysis failed for ${saved.company}:`, analysisError);
+        console.error(`Auto-analysis failed for ${saved.company}:`, analysisError);
       }
     }
 

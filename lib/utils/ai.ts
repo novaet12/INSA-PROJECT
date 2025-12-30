@@ -1,9 +1,4 @@
 import { OpenRouter } from '@openrouter/sdk';
-
-// ============================================================
-// PART 1: RISK MATRIX CONFIGURATION
-// ============================================================
-
 export const RISK_MATRIX_CONFIG = {
   likelihoodScale: {
     1: { label: 'Remote', description: 'Very unlikely to happen', score: 1 },
@@ -62,16 +57,10 @@ export const RISK_MATRIX_CONFIG = {
     },
   },
 };
-
-// ============================================================
-// PART 2: TYPE DEFINITIONS
-// ============================================================
-
 export interface RiskAnalysisResult {
-  // Core parameters
   likelihood: number; // 1-5
   impact: number; // 1-5
-  gap: string; // Security gap description
+  gap: string; //gap description
   threat: string; // Threat description
   mitigation: string; // Recommended control
   impactDescription?: string; // Detailed impact consequences
@@ -98,11 +87,6 @@ export interface AnalysisQuestion {
   section: string;
   category?: string;
 }
-
-// ============================================================
-// PART 3: RISK CALCULATION FUNCTIONS
-// ============================================================
-
 /**
  * Calculate raw risk score from likelihood and impact
  */
@@ -175,10 +159,6 @@ export const getRiskMatrixPosition = (
     level,
   };
 };
-
-// ============================================================
-// PART 4: AI ANALYSIS FUNCTIONS
-// ============================================================
 
 /**
  * Initialize OpenRouter client
@@ -422,9 +402,6 @@ export const analyzeQuestionnaireBatch = async (
   return results;
 };
 
-// ============================================================
-// PART 5: REPORT GENERATION FUNCTIONS
-// ============================================================
 
 /**
  * Generate risk summary statistics

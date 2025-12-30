@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     console.log(` Starting analysis for questionnaire: ${questionnaireId}`);
     console.log(` Total questions: ${questionnaire.questions?.length || 0}`);
 
-    // Ensure questionnaire has a category — infer from questions if missing
+    // check if questionnaire has a category 
     const inferCategoryFromQuestions = (questions: { level?: string }[] | undefined): 'operational' | 'tactical' | 'strategic' => {
       if (!questions || questions.length === 0) return 'operational';
       const counts: Record<'operational' | 'tactical' | 'strategic', number> = { operational: 0, tactical: 0, strategic: 0 };
