@@ -453,7 +453,7 @@ export default function DashboardPage() {
         <div className="space-y-4">
           {filteredAssessments.length === 0 ? (
             <div className="bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg p-12 text-center">
-              <div className="text-6xl mb-4 opacity-30">📋</div>
+              <div className="text-6xl mb-4 opacity-30">⏳</div>
               <p className="text-white font-semibold mb-2">
                 No processed assessments
               </p>

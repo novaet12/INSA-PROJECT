@@ -32,7 +32,7 @@ export class ExcelReportService {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Risk Data");
 
-    //  HEADERS 
+    // ================= HEADERS =================
     const headers = [
       "Risk ID",
       "Risk Name",
@@ -73,7 +73,7 @@ export class ExcelReportService {
       };
     });
 
-    //  DATA ROWS 
+    // ================= DATA ROWS =================
     risks.forEach(risk => {
       sheet.addRow([
         risk.riskId,
