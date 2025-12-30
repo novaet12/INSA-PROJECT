@@ -58,27 +58,27 @@ export const RISK_MATRIX_CONFIG = {
   },
 };
 export interface RiskAnalysisResult {
-  likelihood: number; // 1-5
-  impact: number; // 1-5
-  gap: string; //gap description
-  threat: string; // Threat description
-  mitigation: string; // Recommended control
-  impactDescription?: string; // Detailed impact consequences
+  likelihood: number; 
+  impact: number; 
+  gap: string; 
+  threat: string;
+  mitigation: string;
+  impactDescription?: string;
 
   // Calculated parameters
-  riskScore: number; // likelihood * impact
-  riskLevel: string; // VERY_LOW | LOW | MEDIUM | HIGH | CRITICAL
-  riskColor: string; // Hex color code
-  riskLabel: string; // Display label
-  riskAction: string; // Recommended action
-  riskPriority: string; // Priority level
-  riskTimeline: string; // Implementation timeline
+  riskScore: number;
+  riskLevel: string;
+  riskColor: string;
+  riskLabel: string;
+  riskAction: string;
+  riskPriority: string;
+  riskTimeline: string;
 
   // Additional metadata
-  likelihoodLabel: string; // e.g., "High"
-  impactLabel: string; // e.g., "Critical"
-  category?: string; // Optional category
-  section?: string; // Optional section/control area
+  likelihoodLabel: string;
+  impactLabel: string;
+  category?: string;
+  section?: string;
 }
 
 export interface AnalysisQuestion {
@@ -594,8 +594,3 @@ This assessment identified **${summary.totalItems} controls** with an overall ri
   return markdown;
 };
 
-// ============================================================
-// EXPORT ALL
-// ============================================================
-
-// Types are exported where they are declared (no duplicate re-export needed).
