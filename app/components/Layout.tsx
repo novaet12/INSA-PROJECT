@@ -13,18 +13,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard" },
-    { name: "Risk Matrix", href: "/risk-matrix" },
+    { name: "Assessment", href: "/questionnaires" },
+    { name:"Risk Analysis", href:"/risk-analysis" },
+    { name: "Risk evaluation", href: "/risk-evaluation" },
+    { name: "Risk Treatment", href: "/risk-treatment" },
+    { name: "Report&Documentation", href: "/reports" },
     { name: "Risk Register", href: "/risks" },
-    { name: "Questionnaires", href: "/questionnaires" },
-    { name: "Reports", href: "/reports" },
   ];
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
-      {/* Header removed - logo moved into the sidebar */}
 
       <div className="flex">
-        {/* Sidebar Navigation with logo at top (sticky) */}
         <aside className="w-64 bg-slate-800 border-r border-slate-700 h-screen sticky top-0 flex flex-col">
           <div className="p-4 border-b border-slate-700 flex items-center justify-center">
             <div className="w-full flex items-center justify-center">
@@ -51,8 +51,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               })}
             </ul>
           </nav>
-
-          {/* quick actions / space reserved (Questionnaires panel removed; use the full page) */}
 
           {/* Bottom area: Notifications & Sign Out */}
           <div className="p-4 border-t border-slate-700 space-y-2 relative">
