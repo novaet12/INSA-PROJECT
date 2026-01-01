@@ -165,7 +165,6 @@ export default function DashboardPage() {
     }
   );
 
-  // This part is ONLY in dashboard_visualization_only.tsx
   const filteredAssessmentsForFilters = processedAssessments.filter((a) => {
     const matchCompany =
       !companyFilter ||
@@ -210,7 +209,9 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold text-white">Risk Dashboard</h1>
 
         <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-          <h3 className="text-lg font-bold text-white mb-4">Filter Assessments</h3>
+          <h3 className="text-lg font-bold text-white mb-4">
+            Filter Assessments
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs text-slate-400 mb-2">
@@ -282,7 +283,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <RiskCharts data={riskData} chartType={chartType} />
+        <RiskCharts
+          data={riskData}
+          chartType={chartType}
+          companyName={companyFilter || "All Companies"}
+          date={dateFilter || ""}
+        />
       </div>
     </Layout>
   );
