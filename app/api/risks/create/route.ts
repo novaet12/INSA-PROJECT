@@ -4,8 +4,19 @@ import { authOptions } from "@/lib/auth";
 import { RiskService } from "@/lib/services/riskService";
 import { v4 as uuidv4 } from "uuid";
 
-// Allowed risk levels (match your Mongoose enum)
-const VALID_LEVELS = ["low", "medium", "high", "critical"];
+const VALID_LEVELS = ["low", "medium", "high", "critical"] as const;
+const VALID_STATUS = [
+  "open",
+  "closed",
+  "mitigated",
+  "accepted",
+  "transferred",
+] as const;
+const VALID_TYPES = ["risk", "issue"] as const;
+
+type Level = (typeof VALID_LEVELS)[number];
+type Status = (typeof VALID_STATUS)[number];
+type RiskType = (typeof VALID_TYPES)[number];
 
 export async function POST(request: Request) {
   try {
@@ -18,49 +29,120 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
+    const raw = await request.json();
+    const body = raw ?? {};
 
-    // Required fields check
-    if (!body.description || !body.category || !body.level || !body.owner) {
+    // Required minimal fields
+    if (!body.riskName || !body.category || !body.description) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Reject if gap has no significant gap
+    // Keep your gap rule
     if (body.gap === "No significant gap identified") {
       return NextResponse.json(
-        { success: false, error: "Cannot register a risk with no significant gap" },
+        {
+          success: false,
+          error: "Cannot register a risk with no significant gap",
+        },
         { status: 400 }
       );
     }
 
-    // Likelihood and impact validation
-    if (body.likelihood < 1 || body.likelihood > 5 || body.impact < 1 || body.impact > 5) {
+    // Normalize numeric inputs: treat null/undefined/NaN as 0
+    const toNumberOrZero = (v: unknown): number => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    const preProbability = toNumberOrZero(body.preProbability);
+    const preImpact = toNumberOrZero(body.preImpact);
+    const preScoreRaw = body.preScore;
+    const costPre = toNumberOrZero(body.costPre);
+
+    const postProbability = toNumberOrZero(body.postProbability);
+    const postImpact = toNumberOrZero(body.postImpact);
+    const postScoreRaw = body.postScore;
+    const costPost = toNumberOrZero(body.costPost);
+
+    const likelihood =
+      body.likelihood == null ? undefined : toNumberOrZero(body.likelihood);
+    const impact =
+      body.impact == null ? undefined : toNumberOrZero(body.impact);
+
+    // Validate likelihood/impact only if provided
+    if (likelihood != null && (likelihood < 1 || likelihood > 5)) {
       return NextResponse.json(
-        { success: false, error: "Likelihood and impact must be between 1 and 5" },
+        { success: false, error: "Likelihood must be between 1 and 5" },
+        { status: 400 }
+      );
+    }
+    if (impact != null && (impact < 1 || impact > 5)) {
+      return NextResponse.json(
+        { success: false, error: "Impact must be between 1 and 5" },
         { status: 400 }
       );
     }
 
-    // Map level to valid enum, default to 'low' if invalid
-    const level = VALID_LEVELS.includes(body.level) ? body.level : "low";
+    // Auto-calc scores if null/missing
+    const preScore =
+      preScoreRaw == null || preScoreRaw === ""
+        ? preProbability * preImpact
+        : toNumberOrZero(preScoreRaw);
+
+    const postScore =
+      postScoreRaw == null || postScoreRaw === ""
+        ? postProbability * postImpact
+        : toNumberOrZero(postScoreRaw);
+
+    const scoreRaw = body.score;
+    const score =
+      scoreRaw == null || scoreRaw === ""
+        ? preScore
+        : toNumberOrZero(scoreRaw);
+
+    // Normalize enums with safe defaults
+    const level: Level = VALID_LEVELS.includes(body.level)
+      ? body.level
+      : "low";
+
+    const status: Status = VALID_STATUS.includes(body.status)
+      ? body.status
+      : "open";
+
+    const type: RiskType = VALID_TYPES.includes(body.type)
+      ? body.type
+      : "risk";
 
     const risk = await RiskService.createRisk({
-      riskId: uuidv4(), // generate unique ID
+      riskId: uuidv4(),
+      riskName: body.riskName,
+      category: body.category,
+      status,
+      type,
+      threat: body.threat ?? "",
+      level,
+      preProbability,
+      preImpact,
+      preScore,
+      costPre,
+      postProbability,
+      postImpact,
+      postScore,
+      costPost,
+      score,
       description: body.description,
       company: body.company,
-      category: body.category,
-      level,
-      likelihood: body.likelihood,
-      impact: body.impact,
-      status: body.status || "open",
+      batchId: body.batchId,
+      likelihood,
+      impact,
       owner: body.owner,
       gap: body.gap,
-      threat: body.threat,
       mitigation: body.mitigation,
-      questionnaireId: body.questionnaireId || null, // <-- attach questionnaire ID
+      impactDescription: body.impactDescription,
+      questionnaireId: body.questionnaireId ?? null,
     });
 
     return NextResponse.json({

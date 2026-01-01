@@ -59,16 +59,6 @@ export default function ProcessedAssessmentsPage() {
   const [dateFilter, setDateFilter] = useState("");
   const [availableCompanies, setAvailableCompanies] = useState<string[]>([]);
 
-  const [registeringRisk, setRegisteringRisk] =
-    useState<QuestionAnalysis | null>(null);
-  const [selectedCompany, setSelectedCompany] = useState("");
-  const [riskFormData, setRiskFormData] = useState({
-    category: "",
-    status: "open",
-    owner: "",
-  });
-  const [registerLoading, setRegisterLoading] = useState(false);
-
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
@@ -143,23 +133,6 @@ export default function ProcessedAssessmentsPage() {
 
   const closeEditModal = () => setViewingEdit(null);
 
-  const openRegisterRiskModal = (analysis: QuestionAnalysis, company: string) => {
-    setRegisteringRisk(analysis);
-    setSelectedCompany(company);
-    setRiskFormData({
-      category: "",
-      status: "open",
-      owner: (session?.user as any)?.email || "",
-    });
-  };
-
-  const closeRegisterRiskModal = () => {
-    setRegisteringRisk(null);
-    setSelectedCompany("");
-    setRiskFormData({ category: "", status: "open", owner: "" });
-    setRegisterLoading(false);
-  };
-
   const saveEditedAnalysis = async (payload: any) => {
     try {
       const res = await fetch("/api/analysis/update-question", {
@@ -222,15 +195,12 @@ export default function ProcessedAssessmentsPage() {
     }
   };
 
-  const filterItems = <
-    T extends { company?: string; date?: string }
-  >(
+  const filterItems = <T extends { company?: string; date?: string }>(
     items: T[]
   ) => {
     return items.filter((item) => {
       if (!item) return false;
-      const matchCompany =
-        !companyFilter || item.company === companyFilter;
+      const matchCompany = !companyFilter || item.company === companyFilter;
       const matchDate = !dateFilter || item.date === dateFilter;
       return matchCompany && matchDate;
     });
@@ -271,119 +241,6 @@ export default function ProcessedAssessmentsPage() {
     if (score >= 9) return "bg-orange-500";
     if (score >= 4) return "bg-yellow-400";
     return "bg-green-500";
-  };
-
-  const handleRegisterRisk = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!registeringRisk || !viewingAssessment) return;
-
-    setRegisterLoading(true);
-    try {
-      const res = await fetch("/api/risks/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description: `${registeringRisk.question} — Answer: ${registeringRisk.answer}`,
-          company: selectedCompany,
-          category: riskFormData.category || "Uncategorized",
-          level: registeringRisk.riskLevel.toLowerCase(),
-          likelihood: registeringRisk.likelihood,
-          impact: registeringRisk.impact,
-          status: riskFormData.status,
-          owner: riskFormData.owner,
-          gap: registeringRisk.gap,
-          threat: registeringRisk.threat,
-          mitigation: registeringRisk.mitigation,
-          mitigationStrategy: registeringRisk.mitigation,
-          questionnaireId: viewingAssessment._id,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setMessage({ type: "success", text: "Risk registered successfully" });
-        closeRegisterRiskModal();
-        fetchProcessedAssessments();
-      } else {
-        setMessage({
-          type: "error",
-          text: data.error || "Failed to register",
-        });
-      }
-    } catch (error) {
-      console.error(error);
-      setMessage({ type: "error", text: "Error registering risk" });
-    } finally {
-      setRegisterLoading(false);
-    }
-  };
-
-  // NEW: register all risks function
-  const registerAllRisks = async (
-    analyses: QuestionAnalysis[],
-    company: string
-  ) => {
-    if (!viewingAssessment) return;
-
-    setRegisterLoading(true);
-    try {
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const analysis of analyses) {
-        try {
-          if (analysis.gap === "No significant gap identified") continue;
-
-          const res = await fetch("/api/risks/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              description: `${analysis.question} — Answer: ${analysis.answer}`,
-              company: company,
-              category: "Assessment Risk",
-              level: analysis.riskLevel.toLowerCase(),
-              likelihood: analysis.likelihood,
-              impact: analysis.impact,
-              status: "open",
-              owner: (session?.user as any)?.email || "",
-              gap: analysis.gap,
-              threat: analysis.threat,
-              mitigation: analysis.mitigation,
-              questionnaireId: viewingAssessment._id,
-            }),
-          });
-
-          const data = await res.json();
-          if (data.success) {
-            successCount++;
-          } else {
-            failCount++;
-          }
-        } catch (error) {
-          console.error("Error registering individual risk:", error);
-          failCount++;
-        }
-      }
-
-      if (successCount > 0) {
-        setMessage({
-          type: "success",
-          text: `Successfully registered ${successCount} risk(s)${
-            failCount > 0 ? `, ${failCount} failed` : ""
-          }`,
-        });
-      } else {
-        setMessage({ type: "error", text: "Failed to register risks" });
-      }
-
-      closeAssessmentModal();
-      fetchProcessedAssessments();
-    } catch (error) {
-      console.error(error);
-      setMessage({ type: "error", text: "Error registering risks" });
-    } finally {
-      setRegisterLoading(false);
-    }
   };
 
   if (status === "loading" || loading) {
@@ -601,7 +458,7 @@ export default function ProcessedAssessmentsPage() {
                           <p className="text-slate-300">{a.answer}</p>
                         </div>
 
-                        {/* Attractive metrics block */}
+                        {/* Metrics */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
                           <div className="rounded-lg border bg-gradient-to-br from-slate-800 to-slate-700 border-slate-600 p-3">
                             <p className="text-xs text-slate-400 mb-1">
@@ -707,16 +564,17 @@ export default function ProcessedAssessmentsPage() {
                               </p>
                             </div>
                           )}
-                          {a.impactDescription && a.impactDescription !== "" && (
-                            <div>
-                              <p className="text-xs text-slate-400 mb-1">
-                                Impact Description
-                              </p>
-                              <p className="text-slate-300 text-sm">
-                                {a.impactDescription}
-                              </p>
-                            </div>
-                          )}
+                          {a.impactDescription &&
+                            a.impactDescription !== "" && (
+                              <div>
+                                <p className="text-xs text-slate-400 mb-1">
+                                  Impact Description
+                                </p>
+                                <p className="text-slate-300 text-sm">
+                                  {a.impactDescription}
+                                </p>
+                              </div>
+                            )}
                         </div>
 
                         <div className="flex gap-2">
@@ -733,17 +591,6 @@ export default function ProcessedAssessmentsPage() {
                           >
                             Edit
                           </button>
-                          <button
-                            onClick={() =>
-                              openRegisterRiskModal(
-                                a,
-                                viewingAssessment.company
-                              )
-                            }
-                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition"
-                          >
-                            Register as Risk
-                          </button>
                         </div>
                       </div>
                     );
@@ -752,33 +599,9 @@ export default function ProcessedAssessmentsPage() {
               </div>
             </div>
 
-            {/* Footer with Register All + Re-analyze */}
+            {/* Footer with Re-analyze */}
             <div className="sticky bottom-0 bg-slate-800 border-t border-slate-700 p-6 flex justify-between gap-3">
               <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    const allAnalyses = viewingAssessment.analyses || [];
-                    if (allAnalyses.length === 0) {
-                      alert("No questions to register as risks");
-                      return;
-                    }
-                    if (
-                      confirm(
-                        `Register all ${allAnalyses.length} questions as risks?`
-                      )
-                    ) {
-                      registerAllRisks(
-                        allAnalyses,
-                        viewingAssessment.company
-                      );
-                    }
-                  }}
-                  disabled={registerLoading}
-                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Register All Risks ({(viewingAssessment.analyses || []).length})
-                </button>
-
                 <button
                   onClick={() => handleReanalyze(viewingAssessment._id)}
                   disabled={reanalyzing}
@@ -787,170 +610,12 @@ export default function ProcessedAssessmentsPage() {
                   {reanalyzing ? "Re-analyzing..." : "Re-analyze"}
                 </button>
               </div>
-
               <button
                 onClick={closeAssessmentModal}
                 className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md transition font-medium"
               >
                 Close
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Register Risk Modal */}
-      {registeringRisk && viewingAssessment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-lg border border-slate-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-6 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Register Risk</h2>
-              <button
-                onClick={closeRegisterRiskModal}
-                className="text-slate-400 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div className="bg-slate-900/50 rounded-lg p-4">
-                <div className="mb-4">
-                  <p className="text-xs text-slate-400 mb-2">Question</p>
-                  <p className="text-white font-medium">
-                    {registeringRisk.question}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 mb-2">Answer</p>
-                  <p className="text-slate-300">{registeringRisk.answer}</p>
-                </div>
-              </div>
-
-              <div className="bg-slate-900/50 rounded-lg p-4">
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Likelihood</p>
-                    <p className="text-2xl font-bold text-white">
-                      {registeringRisk.likelihood}/5
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Impact</p>
-                    <p className="text-2xl font-bold text-white">
-                      {registeringRisk.impact}/5
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-slate-700 text-slate-50">
-                    {registeringRisk.riskLevel.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-
-              <form onSubmit={handleRegisterRisk} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Company
-                  </label>
-                  <input
-                    type="text"
-                    value={selectedCompany}
-                    readOnly
-                    className="w-full px-4 py-2 bg-slate-700 text-white rounded-md border border-slate-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Risk Category *
-                  </label>
-                  <input
-                    type="text"
-                    value={riskFormData.category}
-                    onChange={(e) =>
-                      setRiskFormData({
-                        ...riskFormData,
-                        category: e.target.value,
-                      })
-                    }
-                    placeholder="e.g., Data Security, Compliance"
-                    className="w-full px-4 py-2 bg-slate-700 text-white rounded-md border border-slate-600 focus:border-blue-500 focus:outline-none"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Status
-                    </label>
-                    <select
-                      value={riskFormData.status}
-                      onChange={(e) =>
-                        setRiskFormData({
-                          ...riskFormData,
-                          status: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-2 bg-slate-700 text-white rounded-md border border-slate-600 focus:border-blue-500 focus:outline-none"
-                    >
-                      <option value="open">Open</option>
-                      <option value="mitigated">Mitigated</option>
-                      <option value="accepted">Accepted</option>
-                      <option value="transferred">Transferred</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Risk Level
-                    </label>
-                    <input
-                      type="text"
-                      value={registeringRisk.riskLevel}
-                      readOnly
-                      className="w-full px-4 py-2 bg-slate-700 text-slate-400 rounded-md border border-slate-600"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Risk Owner (Email) *
-                  </label>
-                  <input
-                    type="email"
-                    value={riskFormData.owner}
-                    onChange={(e) =>
-                      setRiskFormData({
-                        ...riskFormData,
-                        owner: e.target.value,
-                      })
-                    }
-                    placeholder="owner@company.com"
-                    className="w-full px-4 py-2 bg-slate-700 text-white rounded-md border border-slate-600 focus:border-blue-500 focus:outline-none"
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="submit"
-                    disabled={registerLoading}
-                    className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {registerLoading ? "Registering..." : "Register Risk"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeRegisterRiskModal}
-                    className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md transition font-medium"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
             </div>
           </div>
         </div>
@@ -1056,14 +721,14 @@ export default function ProcessedAssessmentsPage() {
                       document.getElementById(
                         "edit-likelihood"
                       ) as HTMLInputElement
-                    ).value || viewingEdit.current.likelihood
+                    ).value
                   );
                   const impact = Number(
                     (
                       document.getElementById(
                         "edit-impact"
                       ) as HTMLInputElement
-                    ).value || viewingEdit.current.impact
+                    ).value
                   );
                   const gap = (
                     document.getElementById(
@@ -1087,17 +752,14 @@ export default function ProcessedAssessmentsPage() {
                   ).value;
 
                   await saveEditedAnalysis({
-                    analysisId: viewingEdit.assessmentId,
-                    level: viewingEdit.level,
-                    questionId: viewingEdit.questionId,
-                    analysis: {
-                      likelihood,
-                      impact,
-                      gap,
-                      threat,
-                      mitigation,
-                      impactDescription,
-                    },
+                    assessmentId: viewingEdit.assessmentId,
+                    questionIndex: viewingEdit.questionId,
+                    likelihood,
+                    impact,
+                    gap,
+                    threat,
+                    mitigation,
+                    impactDescription,
                   });
                 }}
                 className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition font-medium"

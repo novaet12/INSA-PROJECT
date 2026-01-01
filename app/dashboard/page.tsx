@@ -50,6 +50,9 @@ export default function DashboardPage() {
   const [chartType, setChartType] = useState<"pie" | "bar">("pie");
   const [availableCompanies, setAvailableCompanies] = useState<string[]>([]);
 
+  const [riskLevelFilter, setRiskLevelFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
@@ -126,22 +129,43 @@ export default function DashboardPage() {
     }
   };
 
-  const filterItems = <
-    T extends { company?: string; date?: string; _id?: string }
-  >(
-    items: T[]
-  ) => {
+  const filterItems = (items: ProcessedAssessment[]) => {
     return items.filter((item) => {
       if (!item) return false;
+
       const matchCompany =
         !companyFilter ||
         (item.company || "")
           .toLowerCase()
           .includes(companyFilter.toLowerCase());
+
       const matchDate = !dateFilter || item.date === dateFilter;
+
       const matchQuestionnaire =
         !questionnaireFilter || item._id === questionnaireFilter;
-      return matchCompany && matchDate && matchQuestionnaire;
+
+      const matchCategory =
+        !categoryFilter ||
+        (item.category || "")
+          .toLowerCase()
+          .includes(categoryFilter.toLowerCase());
+
+      const matchRiskLevel =
+        !riskLevelFilter ||
+        item.analyses?.some(
+          (a) =>
+            (a.riskLevel || "")
+              .toLowerCase()
+              .includes(riskLevelFilter.toLowerCase())
+        );
+
+      return (
+        matchCompany &&
+        matchDate &&
+        matchQuestionnaire &&
+        matchCategory &&
+        matchRiskLevel
+      );
     });
   };
 
@@ -203,19 +227,24 @@ export default function DashboardPage() {
     ].filter((item) => item.count > 0);
   })();
 
+  const hasAnyFilter =
+    !!companyFilter || !!dateFilter || !!questionnaireFilter;
+
   return (
     <Layout>
       <div className="space-y-6">
         <h1 className="text-3xl font-bold text-white">Risk Dashboard</h1>
 
+        {/* Filters */}
         <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
           <h3 className="text-lg font-bold text-white mb-4">
-            Filter Assessments
+            Assessment Filters
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {/* Company */}
             <div>
-              <label className="block text-xs text-slate-400 mb-2">
-                Company Name
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                Company
               </label>
               <select
                 value={companyFilter}
@@ -225,7 +254,7 @@ export default function DashboardPage() {
                 }}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
               >
-                <option value="">All Companies</option>
+                <option value="">Select company…</option>
                 {availableCompanies.map((company) => (
                   <option key={company} value={company}>
                     {company}
@@ -234,8 +263,11 @@ export default function DashboardPage() {
               </select>
             </div>
 
+            {/* Date */}
             <div>
-              <label className="block text-xs text-slate-400 mb-2">Date</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                Assessment date
+              </label>
               <input
                 type="date"
                 value={dateFilter}
@@ -247,16 +279,17 @@ export default function DashboardPage() {
               />
             </div>
 
+            {/* Questionnaire */}
             <div>
-              <label className="block text-xs text-slate-400 mb-2">
-                Questionnaire Id
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                Questionnaire ID
               </label>
               <select
                 value={questionnaireFilter}
                 onChange={(e) => setQuestionnaireFilter(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
               >
-                <option value="">All Questionnaires</option>
+                <option value="">All questionnaires</option>
                 {filteredQuestionnaireOptions.map((id) => (
                   <option key={id} value={id}>
                     {id}
@@ -265,9 +298,42 @@ export default function DashboardPage() {
               </select>
             </div>
 
+            {/* Risk level */}
             <div>
-              <label className="block text-xs text-slate-400 mb-2">
-                Chart Type
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                Risk level
+              </label>
+              <select
+                value={riskLevelFilter}
+                onChange={(e) => setRiskLevelFilter(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
+              >
+                <option value="">All levels</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                Category
+              </label>
+              <input
+                type="text"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                placeholder="e.g. Compliance"
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
+              />
+            </div>
+
+            {/* Chart Type */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                Chart type
               </label>
               <select
                 value={chartType}
@@ -283,12 +349,27 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <RiskCharts
-          data={riskData}
-          chartType={chartType}
-          companyName={companyFilter || "All Companies"}
-          date={dateFilter || ""}
-        />
+        {/* Chart / Placeholder */}
+        {hasAnyFilter && riskData.length > 0 ? (
+          <RiskCharts
+            data={riskData}
+            chartType={chartType}
+            companyName={companyFilter || "All Companies"}
+            date={dateFilter || ""}
+            assessmentData={filteredAssessments.flatMap(
+              (a) => a.analyses || []
+            )}
+          />
+        ) : (
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-10 text-center text-slate-400">
+            <p className="text-lg font-semibold text-white mb-2">
+              No assessment selected
+            </p>
+            <p className="text-sm">
+              Please apply at least one filter (Company, Assessment date, or Questionnaire) to view the risk assessment overview.
+            </p>
+          </div>
+        )}
       </div>
     </Layout>
   );

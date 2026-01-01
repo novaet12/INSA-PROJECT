@@ -1,52 +1,94 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-export type RiskStatus = "open" | "mitigated" | "accepted" | "transferred";
+export type RiskStatus =
+  | "open"
+  | "closed"
+  | "mitigated"
+  | "accepted"
+  | "transferred";
 
-export type RiskLevel = "critical" | "high" | "medium" | "low";
+export type RiskType = "risk" | "issue";
 
-export interface IRiskRegister extends Document {
+export type RiskLevel = "low" | "medium" | "high" | "critical";
+
+export interface IRisk extends Document {
   riskId: string;
-  description: string;
+  riskName: string;
   category: string;
-  likelihood: number;
-  impact: number;
   status: RiskStatus;
+  type: RiskType;
+  threat: string;
   level: RiskLevel;
-  mitigationStrategy: string;
-  owner: string;
-  updatedAt: Date;
-  createdAt: Date;
+  preProbability: number;
+  preImpact: number;
+  preScore: number;
+  costPre: number;
+  postProbability: number;
+  postImpact: number;
+  postScore: number;
+  costPost: number;
+  score: number;
+  description: string;
+  company?: string;
+  batchId?: string;
+  likelihood?: number;
+  impact?: number;
+  owner?: string;
+  gap?: string;
+  mitigation?: string;
+  impactDescription?: string;
+  questionnaireId?: string | null;
+  createdAt?: Date;
 }
 
-const RiskRegisterSchema: Schema<IRiskRegister> = new Schema(
+const RiskSchema: Schema<IRisk> = new Schema(
   {
     riskId: { type: String, required: true, unique: true },
-    description: { type: String, required: true },
+    riskName: { type: String, required: true },
     category: { type: String, required: true },
-    likelihood: { type: Number, required: true, min: 1, max: 5 },
-    impact: { type: Number, required: true, min: 1, max: 5 },
     status: {
       type: String,
-      enum: ["open", "mitigated", "accepted", "transferred"],
+      enum: ["open", "closed", "mitigated", "accepted", "transferred"],
       default: "open",
+      required: true,
     },
+    type: {
+      type: String,
+      enum: ["risk", "issue"],
+      required: true,
+    },
+    threat: { type: String, required: true },
     level: {
       type: String,
-      enum: ["critical", "high", "medium", "low"],
-      default: "low",
+      enum: ["low", "medium", "high", "critical"],
+      required: true,
     },
-    mitigationStrategy: { type: String, default: "" },
-    owner: { type: String, required: true },
-    updatedAt: { type: Date, default: Date.now },
+    preProbability: { type: Number, required: true },
+    preImpact: { type: Number, required: true },
+    preScore: { type: Number, required: true },
+    costPre: { type: Number, required: true },
+    postProbability: { type: Number, required: true },
+    postImpact: { type: Number, required: true },
+    postScore: { type: Number, required: true },
+    costPost: { type: Number, required: true },
+    score: { type: Number, required: true },
+    description: { type: String, required: true },
+    company: { type: String },
+    batchId: { type: String },
+    likelihood: { type: Number },
+    impact: { type: Number },
+    owner: { type: String },
+    gap: { type: String },
+    mitigation: { type: String },
+    impactDescription: { type: String },
+    questionnaireId: { type: String, default: null },
   },
   {
-    timestamps: true,
+    timestamps: true, // adds createdAt and updatedAt as Date
   }
 );
 
-const RiskRegister: Model<IRiskRegister> =
-  mongoose.models.RiskRegister ||
-  mongoose.model<IRiskRegister>("RiskRegister", RiskRegisterSchema);
+const Risk: Model<IRisk> =
+  mongoose.models.Risk || mongoose.model<IRisk>("Risk", RiskSchema);
 
-export default RiskRegister;
-
+export default Risk;

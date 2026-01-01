@@ -17,36 +17,62 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const filters = {
       company: searchParams.get("company") || undefined,
-      level: searchParams.get("level") || undefined,
-      status: searchParams.get("status") || undefined,
+      level: (searchParams.get("level") as
+        | "low"
+        | "medium"
+        | "high"
+        | "critical"
+        | null) || undefined,
+      status: (searchParams.get("status") as
+        | "open"
+        | "closed"
+        | "mitigated"
+        | "accepted"
+        | "transferred"
+        | null) || undefined,
       dateFrom: searchParams.get("dateFrom") || undefined,
       dateTo: searchParams.get("dateTo") || undefined,
+      batchId: searchParams.get("batchId") || undefined,
     };
 
     // Fetch risks from service
     let risks = await RiskService.getRisks(filters);
 
     // Filter out risks with no significant gap
-    risks = risks.filter(risk => risk.gap !== "No significant gap identified");
+    risks = risks.filter(
+      (risk) => risk.gap !== "No significant gap identified"
+    );
 
-    // Return only the relevant fields
-    const cleanedRisks = risks.map(risk => ({
+    // Return only the relevant fields (now matching full Risk interface)
+    const cleanedRisks = risks.map((risk) => ({
       riskId: risk.riskId,
+      riskName: risk.riskName,
+      category: risk.category,
+      status: risk.status,
+      type: risk.type,
+      threat: risk.threat,
+      level: risk.level,
+      preProbability: risk.preProbability,
+      preImpact: risk.preImpact,
+      preScore: risk.preScore,
+      costPre: risk.costPre,
+      postProbability: risk.postProbability,
+      postImpact: risk.postImpact,
+      postScore: risk.postScore,
+      costPost: risk.costPost,
+      score: risk.score,
       description: risk.description,
       company: risk.company,
-      category: risk.category,
-      level: risk.level,
+      batchId: risk.batchId,
       likelihood: risk.likelihood,
       impact: risk.impact,
-      status: risk.status,
       owner: risk.owner,
       gap: risk.gap,
-      threat: risk.threat,
       mitigation: risk.mitigation,
-      questionnaireId: risk.questionnaireId, // <-- add this
+      impactDescription: risk.impactDescription,
+      questionnaireId: risk.questionnaireId,
       createdAt: risk.createdAt,
     }));
-
 
     return NextResponse.json({
       success: true,
