@@ -99,11 +99,8 @@ Questionnaires must be submitted in the following JSON structure:
 #### Report Generation Services
 - **Location**: `lib/services/reportService.ts`
 - **Function**: Multi-format report export functionality
-- **Supported Formats**: Excel, PDF, Word, PowerPoint
+- **Supported Formats**: Excel, PDF, Word
 
-## 🔧 Development Notes
-
-### Code Quality Considerations
 
 #### Current Implementation Notes
 - **Dashboard Download Logic**: Assessment download functionality is currently implemented in `components/RiskCharts.tsx` considering our time limit for a implementation addtional code section at lib/services for this web .
