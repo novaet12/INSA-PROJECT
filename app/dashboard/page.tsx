@@ -49,9 +49,7 @@ export default function DashboardPage() {
   const [questionnaireFilter, setQuestionnaireFilter] = useState("");
   const [chartType, setChartType] = useState<"pie" | "bar">("pie");
   const [availableCompanies, setAvailableCompanies] = useState<string[]>([]);
-
-  const [riskLevelFilter, setRiskLevelFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [availableDates, setAvailableDates] = useState<string[]>([]); // NEW
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -123,9 +121,20 @@ export default function DashboardPage() {
       const assessments: ProcessedAssessment[] =
         data.success && Array.isArray(data.assessments) ? data.assessments : [];
       setProcessedAssessments(assessments);
+
+      // build available dates for dropdown
+      const dates = Array.from(
+        new Set(
+          assessments
+            .map((a) => a.date)
+            .filter((d): d is string => Boolean(d))
+        )
+      ).sort();
+      setAvailableDates(dates);
     } catch (error) {
       console.error("Error:", error);
       setProcessedAssessments([]);
+      setAvailableDates([]);
     }
   };
 
@@ -144,28 +153,9 @@ export default function DashboardPage() {
       const matchQuestionnaire =
         !questionnaireFilter || item._id === questionnaireFilter;
 
-      const matchCategory =
-        !categoryFilter ||
-        (item.category || "")
-          .toLowerCase()
-          .includes(categoryFilter.toLowerCase());
+      // removed category + risk level checks
 
-      const matchRiskLevel =
-        !riskLevelFilter ||
-        item.analyses?.some(
-          (a) =>
-            (a.riskLevel || "")
-              .toLowerCase()
-              .includes(riskLevelFilter.toLowerCase())
-        );
-
-      return (
-        matchCompany &&
-        matchDate &&
-        matchQuestionnaire &&
-        matchCategory &&
-        matchRiskLevel
-      );
+      return matchCompany && matchDate && matchQuestionnaire;
     });
   };
 
@@ -263,20 +253,26 @@ export default function DashboardPage() {
               </select>
             </div>
 
-            {/* Date */}
+            {/* Assessment date as dropdown */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-2">
                 Assessment date
               </label>
-              <input
-                type="date"
+              <select
                 value={dateFilter}
                 onChange={(e) => {
                   setDateFilter(e.target.value);
                   setQuestionnaireFilter("");
                 }}
                 className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
-              />
+              >
+                <option value="">All dates</option>
+                {availableDates.map((date) => (
+                  <option key={date} value={date}>
+                    {date}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Questionnaire */}
@@ -296,38 +292,6 @@ export default function DashboardPage() {
                   </option>
                 ))}
               </select>
-            </div>
-
-            {/* Risk level */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-2">
-                Risk level
-              </label>
-              <select
-                value={riskLevelFilter}
-                onChange={(e) => setRiskLevelFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
-              >
-                <option value="">All levels</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
-
-            {/* Category */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-2">
-                Category
-              </label>
-              <input
-                type="text"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                placeholder="e.g. Compliance"
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
-              />
             </div>
 
             {/* Chart Type */}

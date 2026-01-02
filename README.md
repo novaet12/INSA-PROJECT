@@ -2,44 +2,49 @@
 
 ## Features
 
-- **Automated Risk Analysis**: AI-powered analysis of risk assessment questionnaires using advanced language models
-- **Real-time Updates**: Server-sent events (SSE) for live dashboard updates during analysis
-- **Multi-format Reporting**: Generate reports in Excel, PDF, Word, and PowerPoint formats
-- **Risk Visualization**: Interactive risk matrices and charts for data-driven insights
-- **User Authentication**: Secure authentication system with role-based access
-- **Questionnaire Management**: Import, process, and analyze structured risk assessment questionnaires
-- **Dashboard Analytics**: Comprehensive dashboards with filtering and visualization capabilities
+- **Automated Risk Analysis**: AI-powered analysis of risk assessment questionnaires using advanced language models via OpenRouter
+- **Real-time Updates**: Server-sent events (SSE) for live dashboard updates during analysis processing
+- **Multi-format Reporting**: Generate professional reports in Excel (.xlsx), PDF, Word (.docx), formats
+- **Risk Visualization**: Interactive risk matrices and charts for data-driven insights and decision making
+- **Enterprise Authentication**: Secure authentication system with role-based access control using NextAuth.js
+- **Questionnaire Management**: Import, process, and analyze structured risk assessment questionnaires with validation
 
-## used frame work and tools
+### 3. Environment Configuration
 
-- Node.js 18.x or higher
-- MongoDB 6.0 or higher
-- npm or yarn package manager
+`.env.local` file in the root directory with the following required variables:
 
 
-3. **Environment Setup**
 
-   MONGODB_URI=mongodb://localhost:27017/csrars
-   NEXTAUTH_SECRET=your-secret-key-here
-   NEXTAUTH_URL=http://localhost:3000
-   OPENROUTER_API_KEY=your-openrouter-api-key  # Optional: for AI analysis
-   ```
+# AI Integration 
+OPENROUTER_API_KEY=your-openrouter-api-key-here
+
 
 
 ### API Endpoints
 
-The application provides RESTful API endpoints for:
+The application provides RESTful API endpoints organized by functionality:
 
-- `/api/auth/*` - Authentication routes
-- `/api/analysis/*` - Risk analysis operations
-- `/api/questionnaires/*` - Questionnaire management
-- `/api/reports/*` - Report generation and export
-- `/api/notifications/stream` - Real-time updates via SSE
-- `/api/questionnaires/fetch` -the quetionarie is accepted with this api endpoint 
+#### Questionnaire Management
+- `GET /api/questionnaires/list` - Retrieve available questionnaires
+- `POST /api/questionnaires/fetch` - Import new questionnaires
+- `GET /api/questionnaires/[id]` - Get specific questionnaire details
 
-### Questionnaire Format
+#### Risk Analysis
+- `POST /api/analysis/process` - Trigger risk analysis processing
+- `GET /api/analysis/[id]` - Retrieve analysis results
+- `POST /api/analysis/reanalyze` - Re-run analysis for existing questionnaire
 
-Questionnaires should be in JSON format:
+#### Reporting
+- `GET /api/reports/list` - List available reports
+- `POST /api/reports/generate` - Generate new reports
+- `GET /api/reports/export` - Export reports in various formats
+
+#### Real-time Updates
+- `GET /api/notifications/stream` - Server-sent events for real-time updates
+
+### Questionnaire Data Format
+
+Questionnaires must be submitted in the following JSON structure:
 
 ```json
 {
@@ -61,19 +66,63 @@ Questionnaires should be in JSON format:
 }
 ```
 
-### Stack
+## 🏗️ Architecture & Technology Stack
 
-- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
-- **Backend**: Next.js API Routes, MongoDB with Mongoose
+### Core Technologies
+
+- **Frontend Framework**: Next.js 14 with App Router
+- **UI Library**: React 18 with TypeScript
+- **Styling**: Tailwind CSS for responsive design
+- **Database**: MongoDB with Mongoose ODM
 - **Authentication**: NextAuth.js with credentials provider
 - **AI Integration**: OpenRouter SDK for LLM-powered analysis
-- **Real-time**: Server-Sent Events (SSE) for live updates
-- **Reporting**: ExcelJS, jsPDF, docx, pptxgenjs for multi-format exports
+- **Real-time Communication**: Server-Sent Events (SSE)
+- **Report Generation**: ExcelJS, jsPDF, docx, pptxgenjs
 
-### Key Components
+### Key Architectural Components
 
-- **Risk Analysis Engine**: Automated processing using AI models
-- **Analysis Lock System**: Prevents duplicate analysis runs
-- **SSE Hub**: Real-time event broadcasting system
-- **Report Generators**: Multi-format report export functionality
-- **Dashboard Components**: Interactive charts and risk matrices
+#### Risk Analysis Engine
+- **Location**: `lib/services/riskAnalyzer.ts`
+- **Function**: Automated processing using AI models for risk assessment
+- **Integration**: OpenRouter API with configurable model selection
+
+#### Analysis Lock System
+- **Location**: `lib/services/analysisLock.ts`, `models/AnalysisLock.ts`
+- **Function**: Prevents duplicate analysis runs and ensures data consistency
+- **Mechanism**: MongoDB-based distributed locking with expiration
+
+#### Real-time Event System
+- **Location**: `lib/sseHub.ts`, `app/api/notifications/stream/route.ts`
+- **Function**: Broadcasts analysis updates to connected dashboard clients
+- **Protocol**: Server-Sent Events for efficient real-time communication
+
+#### Report Generation Services
+- **Location**: `lib/services/reportService.ts`
+- **Function**: Multi-format report export functionality
+- **Supported Formats**: Excel, PDF, Word, PowerPoint
+
+## 🔧 Development Notes
+
+### Code Quality Considerations
+
+#### Current Implementation Notes
+- **Dashboard Download Logic**: Assessment download functionality is currently implemented in `components/RiskCharts.tsx` considering our time limit for a implementation addtional code section at lib/services for this web .
+- **Variable Naming**: Some variables and functions may lack descriptive names. Review and improve naming conventions during code refactoring.
+- **AI Model Configuration**: The current AI analysis uses OpenRouter's GPT-4o Mini model. Model selection can be modified in `lib/utils/ai.ts` (lines ~293-301):
+
+```typescript
+const completion = await openRouter.chat.send({
+  model: 'openai/gpt-4o-mini', // Modify this line for different models
+  messages: [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt },
+  ],
+  temperature: 0,
+  max_tokens: 500,
+});
+```
+
+## personal note
+ 
+ ### please consider we are intern so our code base will not be clear and precise so if theres a quetion that you have about the project contact as through telegram at this username @novat123
+
