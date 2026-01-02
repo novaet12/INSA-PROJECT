@@ -66,9 +66,7 @@ Questionnaires must be submitted in the following JSON structure:
 }
 ```
 
-## 🏗️ Architecture & Technology Stack
 
-### Core Technologies
 
 - **Frontend Framework**: Next.js 14 with App Router
 - **UI Library**: React 18 with TypeScript
