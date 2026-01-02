@@ -1,17 +1,11 @@
+// eslint-disable-line @typescript-eslint/no-explicit-any
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import RiskAnalysis from "@/models/RiskAnalysis";
 
 export async function GET() {
     try {
-        // TEMPORARILY DISABLED FOR TESTING
-        // const session = await getSession();
-        // if (!session) {
-        //     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        // }
-
-        await dbConnect();
+         await dbConnect();
 
         const analyses = await RiskAnalysis.find({})
             .sort({ createdAt: -1 })
